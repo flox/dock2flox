@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# dock2flox — Convert Dockerfiles and Compose files to Flox environments
+# Usage: dock2flox [OPTIONS] [FILE...]
+
+set -euo pipefail
+
+# Resolve script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOCK2FLOX_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Source libraries
+source "$DOCK2FLOX_ROOT/lib/core.sh"
+source "$DOCK2FLOX_ROOT/lib/mapper_packages.sh"
+source "$DOCK2FLOX_ROOT/lib/mapper_base_images.sh"
+source "$DOCK2FLOX_ROOT/lib/parser_dockerfile.sh"
+source "$DOCK2FLOX_ROOT/lib/emitter_toml.sh"
+
+# Check for optional modules
+if [[ -f "$DOCK2FLOX_ROOT/lib/parser_compose.sh" ]]; then
+    source "$DOCK2FLOX_ROOT/lib/parser_compose.sh"
+fi
+if [[ -f "$DOCK2FLOX_ROOT/lib/validator.sh" ]]; then
+    source "$DOCK2FLOX_ROOT/lib/validator.sh"
+fi
+
+# --- CLI Argument Parsing ---
+
+usage() {
+    cat <<EOF
+dock2flox v${DOCK2FLOX_VERSION} — Convert Dockerfiles to Flox environments
+
+USAGE:
+    dock2flox [OPTIONS] [FILE...]
+
+OPTIONS:
+    -i, --input FILE        Explicit input file (repeatable)
+    -o, --output DIR        Output directory for manifest (default: ./)
+    -n, --dry-run           Print manifest to stdout, do not write files
+    -f, --force             Overwrite existing manifest without confirmation
+        --validate          Verify package mappings via flox search
+        --services MODE     Service handling: flox | container | prompt
+                            (default: prompt if TTY, container otherwise)
+        --verbose           Show mapping decisions on stderr
+    -h, --help              Show this help
+
+ENVIRONMENT VARIABLES:
+    DOCK2FLOX_SERVICES      Override service mode (flox|container|prompt)
+    DOCK2FLOX_VERBOSE       Set to 1 for verbose output
+
+EXAMPLES:
+    dock2flox                           # Auto-detect in current directory
+    dock2flox Dockerfile                # Convert specific Dockerfile
+    dock2flox --dry-run --validate .    # Preview with package validation
+    dock2flox -o ./myproject Dockerfile docker-compose.yml
+
+EOF
+}
+
+main() {
+    local -a input_files=()
+    local output_dir="."
+    local dry_run=0
+    local force=0
+    local validate=0
+    local opt_services=""
+    local services_mode=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -i|--input)
+                input_files+=("$2")
+                shift 2
+                ;;
+            -o|--output)
+                output_dir="$2"
+                shift 2
+                ;;
+            -n|--dry-run)
+                dry_run=1
+                shift
+                ;;
+            -f|--force)
+                force=1
+                shift
+                ;;
+            --validate)
+                validate=1
+                shift
+                ;;
+            --services)
+                opt_services="$2"
+                shift 2
+                ;;
+            --verbose)
+                export DOCK2FLOX_VERBOSE=1
+                shift
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            --)
+                shift
+                input_files+=("$@")
+                break
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                usage
+                return 1
+                ;;
+            *)
+                input_files+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    # Determine service mode
+    if [[ -n "${DOCK2FLOX_SERVICES:-}" ]]; then
+        services_mode="$DOCK2FLOX_SERVICES"
+    elif [[ -n "$opt_services" ]]; then
+        services_mode="$opt_services"
+    elif dock2flox_is_interactive; then
+        services_mode="prompt"
+    else
+        services_mode="container"
+    fi
+    export DOCK2FLOX_SERVICES_MODE="$services_mode"
+
+    # Auto-detect inputs if none specified
+    if [[ ${#input_files[@]} -eq 0 ]]; then
+        local detected
+        detected=$(dock2flox_detect_inputs ".")
+        if [[ -z "$detected" ]]; then
+            log_error "No Dockerfile or Compose files found in current directory"
+            log_error "Specify input files explicitly: dock2flox <file>..."
+            return 1
+        fi
+        while IFS= read -r f; do
+            input_files+=("$f")
+        done <<< "$detected"
+        log_info "Auto-detected: ${input_files[*]}"
+    fi
+
+    # Validate inputs exist
+    local f
+    for f in "${input_files[@]}"; do
+        if [[ ! -f "$f" ]]; then
+            log_error "File not found: $f"
+            return 1
+        fi
+    done
+
+    # Create IR file
+    local ir_file
+    ir_file=$(dock2flox_mktemp)
+
+    # Process each input file
+    for f in "${input_files[@]}"; do
+        local input_type
+        input_type=$(dock2flox_classify_input "$f")
+
+        case "$input_type" in
+            dockerfile)
+                parse_dockerfile "$f" "$ir_file"
+                ;;
+            compose)
+                if declare -f parse_compose > /dev/null 2>&1; then
+                    parse_compose "$f" "$ir_file"
+                else
+                    log_warn "Compose parser not available, skipping: $f"
+                fi
+                ;;
+            devcontainer)
+                log_warn "Devcontainer parser not yet implemented, skipping: $f"
+                ;;
+            *)
+                log_warn "Unknown file type, skipping: $f"
+                ;;
+        esac
+    done
+
+    # Validate if requested
+    if [[ "$validate" -eq 1 ]]; then
+        if declare -f validate_ir > /dev/null 2>&1; then
+            log_info "Validating package mappings via flox search..."
+            validate_ir "$ir_file"
+        else
+            log_warn "--validate requested but validator not available"
+        fi
+    fi
+
+    # Emit TOML
+    if [[ "$dry_run" -eq 1 ]]; then
+        emit_toml "$ir_file"
+    else
+        local output_file="$output_dir/manifest.toml"
+
+        # Check for existing manifest
+        if [[ -f "$output_file" && "$force" -eq 0 ]]; then
+            if dock2flox_is_interactive; then
+                if ! dock2flox_prompt_yesno "Overwrite existing $output_file?" "n"; then
+                    log_info "Aborted. Use --dry-run to preview or --force to overwrite."
+                    return 0
+                fi
+            else
+                log_error "File exists: $output_file (use --force to overwrite)"
+                return 1
+            fi
+        fi
+
+        # Ensure output directory exists
+        mkdir -p "$output_dir"
+
+        # Write manifest
+        emit_toml "$ir_file" > "$output_file"
+        log_info "Wrote: $output_file"
+
+        # Print summary
+        _print_summary "$ir_file"
+    fi
+}
+
+_print_summary() {
+    local ir_file="$1"
+
+    local n_install n_var n_hook n_service n_skip n_unmapped
+    n_install=$(grep -c "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
+    n_var=$(grep -c "^VAR${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
+    n_hook=$(grep -c "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
+    n_service=$(grep -c "^SERVICE${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
+    n_skip=$(grep -c "^SKIP${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
+    n_unmapped=$(grep -c 'UNMAPPED' "$ir_file" 2>/dev/null || printf '0')
+
+    log_info "Summary: ${n_install} packages, ${n_var} vars, ${n_hook} hook lines, ${n_service} services, ${n_skip} skipped"
+    if [[ "$n_unmapped" -gt 0 ]]; then
+        log_warn "${n_unmapped} package(s) could not be mapped — search for UNMAPPED in output"
+    fi
+}
+
+# --- Run ---
+main "$@"

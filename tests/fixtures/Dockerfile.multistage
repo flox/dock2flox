@@ -1,0 +1,37 @@
+ARG GO_VERSION=1.22
+ARG ALPINE_VERSION=3.19
+
+FROM golang:${GO_VERSION}-alpine AS builder
+
+RUN apk add --no-cache \
+    git \
+    make \
+    gcc \
+    musl-dev
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+ARG VERSION=dev
+RUN CGO_ENABLED=1 go build -ldflags="-X main.version=${VERSION}" -o /app/server ./cmd/server
+
+FROM alpine:${ALPINE_VERSION}
+
+RUN apk add --no-cache \
+    ca-certificates \
+    curl \
+    tzdata
+
+ENV APP_PORT=8080
+ENV APP_ENV=production
+ENV TZ=UTC
+
+COPY --from=builder /app/server /usr/local/bin/server
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s CMD curl -f http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["/usr/local/bin/server"]

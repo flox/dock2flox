@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:secret@db:5432/myapp
+      - REDIS_URL=redis://cache:6379/0
+      - APP_ENV=development
+      - SECRET_KEY=dev-secret-key
+    depends_on:
+      - db
+      - cache
+    volumes:
+      - .:/app
+
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=myapp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  worker:
+    build: .
+    command: celery -A tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:secret@db:5432/myapp
+      - REDIS_URL=redis://cache:6379/0
+
+volumes:
+  pgdata:

@@ -1,0 +1,40 @@
+# Base image -> implied nixpkgs packages
+# Format: image_name<TAB>pkg_path<TAB>version_regex<TAB>pkg_group
+# version_regex extracts version from the image tag
+# Use * as image_name suffix for prefix matching
+
+# Python images
+python	python3	^([0-9]+\.[0-9]+)	runtime
+# Node.js images
+node	nodejs	^([0-9]+)	runtime
+# Go images
+golang	go	^([0-9]+\.[0-9]+)	runtime
+# Ruby images
+ruby	ruby	^([0-9]+\.[0-9]+)	runtime
+# Rust images
+rust	rustc	^([0-9]+\.[0-9]+)	runtime
+# Java images
+openjdk	jdk	^([0-9]+)	runtime
+eclipse-temurin	jdk	^([0-9]+)	runtime
+amazoncorretto	jdk	^([0-9]+)	runtime
+# .NET images
+mcr.microsoft.com/dotnet/sdk	dotnet-sdk	^([0-9]+\.[0-9]+)	runtime
+mcr.microsoft.com/dotnet/aspnet	dotnet-aspnetcore-runtime	^([0-9]+\.[0-9]+)	runtime
+# Service images (for compose)
+postgres	postgresql	^([0-9]+)	service
+redis	redis	^([0-9]+)	service
+mysql	mysql	^([0-9]+\.[0-9]+)	service
+mariadb	mariadb	^([0-9]+\.[0-9]+)	service
+mongo	mongodb	^([0-9]+\.[0-9]+)	service
+rabbitmq	rabbitmq-server	^([0-9]+\.[0-9]+)	service
+nginx	nginx	^([0-9]+\.[0-9]+)	service
+httpd	apacheHttpd	^([0-9]+\.[0-9]+)	service
+memcached	memcached	^([0-9]+\.[0-9]+)	service
+elasticsearch	elasticsearch	^([0-9]+\.[0-9]+)	service
+# Base OS images (no implied packages)
+ubuntu	_	_	_
+debian	_	_	_
+alpine	_	_	_
+centos	_	_	_
+fedora	_	_	_
+amazonlinux	_	_	_

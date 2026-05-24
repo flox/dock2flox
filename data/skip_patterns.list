@@ -1,0 +1,30 @@
+# Patterns to skip during Dockerfile-to-Flox conversion
+# Each line is a pattern (grep -F or regex) that indicates OCI boilerplate
+
+# ENV names to skip (exact match on variable name)
+ENV:DEBIAN_FRONTEND
+ENV:APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE
+ENV:DOCKER_BUILDKIT
+ENV:BUILDKIT_INLINE_CACHE
+ENV:PYTHONDONTWRITEBYTECODE
+ENV:PIP_NO_CACHE_DIR
+ENV:PIP_DISABLE_PIP_VERSION_CHECK
+
+# RUN fragments to skip (substring match)
+RUN:apt-get update
+RUN:rm -rf /var/lib/apt/lists
+RUN:apt-get clean
+RUN:apt-get autoremove
+RUN:apt-get purge
+RUN:apk del
+RUN:yum clean all
+RUN:rm -rf /var/cache/yum
+RUN:rm -rf /var/cache/apk
+RUN:groupadd
+RUN:useradd
+RUN:addgroup
+RUN:adduser
+RUN:chown -R
+RUN:chmod -R
+RUN:ln -s /dev/stdout
+RUN:ln -s /dev/stderr

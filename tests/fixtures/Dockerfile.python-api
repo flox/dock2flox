@@ -1,0 +1,32 @@
+FROM python:3.11-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    libpq-dev \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV APP_ENV=development
+ENV PGHOST=localhost
+ENV PGPORT=5432
+ENV LOG_LEVEL=info
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /app/data /app/logs
+
+EXPOSE 8000
+
+USER appuser
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

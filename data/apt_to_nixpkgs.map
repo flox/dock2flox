@@ -1,0 +1,153 @@
+# apt/dpkg package name -> nixpkgs pkg-path mapping
+# Format: apt_name<TAB>nixpkgs_path<TAB>notes (optional)
+# Lines starting with # are comments
+# This table covers the most common packages found in Dockerfiles
+
+# Build essentials
+build-essential	gcc	also install gnumake and binutils
+gcc	gcc
+g++	gcc
+make	gnumake
+cmake	cmake
+automake	automake
+autoconf	autoconf
+libtool	libtool
+pkg-config	pkg-config
+binutils	binutils
+patch	patch
+bison	bison
+flex	flex
+ninja-build	ninja
+
+# Core utilities
+curl	curl
+wget	wget
+git	git
+unzip	unzip
+zip	zip
+tar	gnutar
+gzip	gzip
+bzip2	bzip2
+xz-utils	xz
+file	file
+less	less
+vim	vim
+nano	nano
+tree	tree
+jq	jq
+yq	yq
+htop	htop
+ncurses-bin	ncurses
+rsync	rsync
+socat	socat
+netcat-openbsd	netcat-gnu
+
+# Networking and security
+ca-certificates	cacert
+openssl	openssl
+libssl-dev	openssl
+gnupg	gnupg
+gnupg2	gnupg
+dirmngr	gnupg
+openssh-client	openssh
+openssh-server	openssh
+
+# Python
+python3	python3
+python3-dev	python3
+python3-pip	python313Packages.pip
+python3-venv	python3
+python3-setuptools	python313Packages.setuptools
+python3-wheel	python313Packages.wheel
+python-is-python3	python3
+
+# Node.js
+nodejs	nodejs
+npm	nodejs
+
+# Ruby
+ruby	ruby
+ruby-dev	ruby
+ruby-full	ruby
+
+# Go
+golang	go
+
+# Rust
+rustc	rustc
+cargo	cargo
+
+# Java
+default-jdk	jdk
+default-jre	jre
+openjdk-17-jdk	jdk17
+openjdk-17-jre	jre17
+openjdk-21-jdk	jdk21
+openjdk-21-jre	jre21
+
+# Database clients and libraries
+libpq-dev	postgresql
+libpq5	postgresql
+postgresql-client	postgresql
+default-libmysqlclient-dev	libmysqlclient
+libmysqlclient-dev	libmysqlclient
+mariadb-client	mariadb
+default-mysql-client	mariadb
+redis-tools	redis
+sqlite3	sqlite
+libsqlite3-dev	sqlite
+
+# Common libraries
+zlib1g-dev	zlib
+libz-dev	zlib
+libbz2-dev	bzip2
+libreadline-dev	readline
+libncurses5-dev	ncurses
+libncursesw5-dev	ncurses
+libffi-dev	libffi
+libxml2-dev	libxml2
+libxslt1-dev	libxslt
+libyaml-dev	libyaml
+libcurl4-openssl-dev	curl
+libgmp-dev	gmp
+libjpeg-dev	libjpeg
+libpng-dev	libpng
+libfreetype6-dev	freetype
+libfontconfig1-dev	fontconfig
+libcairo2-dev	cairo
+libpango1.0-dev	pango
+librsvg2-dev	librsvg
+libmagickwand-dev	imagemagick
+libpcre3-dev	pcre
+libpcre2-dev	pcre2
+liblzma-dev	xz
+libzstd-dev	zstd
+libsodium-dev	libsodium
+libprotobuf-dev	protobuf
+protobuf-compiler	protobuf
+libgrpc-dev	grpc
+libev-dev	libev
+libuv1-dev	libuv
+
+# System libraries
+libc6-dev	glibc
+linux-headers-generic	linuxHeaders
+
+# Infrastructure / cloud CLIs
+awscli	awscli2
+google-cloud-sdk	google-cloud-sdk
+kubectl	kubectl
+terraform	terraform
+helm	kubernetes-helm
+docker-ce-cli	docker-client
+
+# Time/locale
+tzdata	tzdata
+
+# Misc tools
+graphviz	graphviz
+ffmpeg	ffmpeg
+imagemagick	imagemagick
+ghostscript	ghostscript
+pandoc	pandoc
+shellcheck	shellcheck
