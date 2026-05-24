@@ -1,0 +1,11 @@
+# Package ecosystem -> cache environment variable exports
+# Format: ecosystem_pattern<TAB>export_line
+# ecosystem_pattern is matched against install_id or pkg_path in IR INSTALL records
+# Multiple lines per ecosystem are emitted in order
+
+python	export UV_CACHE_DIR="$FLOX_ENV_CACHE/uv"
+python	export PIP_CACHE_DIR="$FLOX_ENV_CACHE/pip"
+nodejs	export npm_config_cache="$FLOX_ENV_CACHE/npm"
+rust	export CARGO_HOME="$FLOX_ENV_CACHE/cargo"
+go	export GOPATH="$FLOX_ENV_CACHE/go"
+go	export GOMODCACHE="$FLOX_ENV_CACHE/go/pkg/mod"

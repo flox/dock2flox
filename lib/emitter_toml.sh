@@ -7,6 +7,9 @@
 emit_toml() {
     local ir_file="$1"
 
+    # Infer cache hooks based on detected packages (before emitting)
+    _infer_cache_hooks "$ir_file"
+
     _emit_header
     _emit_install_section "$ir_file"
     _emit_vars_section "$ir_file"
@@ -27,6 +30,75 @@ _toml_escape() {
     value="${value//$'\r'/\\r}"
     # If value contains newlines, caller should use multi-line literal instead
     printf '%s' "$value"
+}
+
+# --- Cache hook inference ---
+
+_infer_cache_hooks() {
+    local ir_file="$1"
+    local cache_map="$DOCK2FLOX_DATA/cache_hooks.map"
+
+    [[ ! -f "$cache_map" ]] && return 0
+
+    # Detect which ecosystems are present in INSTALL records
+    local installs
+    installs=$({ grep "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
+    [[ -z "$installs" ]] && return 0
+
+    local -A ecosystems_detected=()
+
+    # Check for python
+    if echo "$installs" | grep -qi "python"; then
+        ecosystems_detected[python]=1
+    fi
+    # Check for nodejs
+    if echo "$installs" | grep -qi "nodejs\|node"; then
+        ecosystems_detected[nodejs]=1
+    fi
+    # Check for rust
+    if echo "$installs" | grep -qi "rustc\|cargo"; then
+        ecosystems_detected[rust]=1
+    fi
+    # Check for go
+    if echo "$installs" | grep -qi "${IR_DELIM}go${IR_DELIM}\|${IR_DELIM}go$"; then
+        ecosystems_detected[go]=1
+    fi
+
+    [[ ${#ecosystems_detected[@]} -eq 0 ]] && return 0
+
+    # Collect cache export lines for detected ecosystems
+    local -a cache_exports=()
+    local -a cache_dirs=()
+
+    local ecosystem export_line
+    while IFS=$'\t' read -r ecosystem export_line; do
+        [[ -z "$ecosystem" || "$ecosystem" == "#"* ]] && continue
+        if [[ -n "${ecosystems_detected[$ecosystem]:-}" ]]; then
+            cache_exports+=("$export_line")
+            # Extract dir path for mkdir
+            local dir_path
+            dir_path=$(echo "$export_line" | sed -E 's/.*="([^"]+)".*/\1/')
+            cache_dirs+=("$dir_path")
+        fi
+    done < "$cache_map"
+
+    [[ ${#cache_exports[@]} -eq 0 ]] && return 0
+
+    # Inject cache hooks at priority 010-019 (before any user hooks)
+    local i=10
+    for export_line in "${cache_exports[@]}"; do
+        ir_hook "$ir_file" "$(printf '%03d' $i)" "$export_line" "0"
+        i=$((i + 1))
+    done
+
+    # Add mkdir -p for all cache dirs
+    local mkdir_line="mkdir -p"
+    for dir in "${cache_dirs[@]}"; do
+        mkdir_line+=" \"$dir\""
+    done
+    ir_hook "$ir_file" "$(printf '%03d' $i)" "$mkdir_line" "0"
+
+    log_verbose "Injected cache hooks for: ${!ecosystems_detected[*]}"
 }
 
 # --- Section emitters ---

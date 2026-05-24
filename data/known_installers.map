@@ -1,0 +1,18 @@
+# URL/command patterns that indicate a well-known tool being installed
+# Format: url_pattern<TAB>tool_name<TAB>pkg_path
+# Matched as substring against the full RUN body (before && splitting)
+
+nodejs.org/dist	nodejs	nodejs
+deb.nodesource.com	nodejs	nodejs
+raw.githubusercontent.com/nvm-sh/nvm	nvm	nodejs
+install.python-poetry.org	poetry	poetry
+python-poetry.org	poetry	poetry
+rustup.rs	rustup	rustc
+sh.rustup.rs	rustup	rustc
+get.docker.com	docker	docker-client
+dl.google.com/go	golang	go
+golang.org/dl	golang	go
+get.helm.sh	helm	kubernetes-helm
+raw.githubusercontent.com/helm	helm	kubernetes-helm
+starship.rs/install.sh	starship	starship
+mise.jdx.dev	mise	mise

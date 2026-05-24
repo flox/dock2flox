@@ -22,7 +22,10 @@ PGPORT = "5432"
 
 [hook]
 on-activate = '''
-# pip: pip install --no-cache-dir -r requirements.txt
+export UV_CACHE_DIR="$FLOX_ENV_CACHE/uv"
+export PIP_CACHE_DIR="$FLOX_ENV_CACHE/pip"
+mkdir -p "$FLOX_ENV_CACHE/uv" "$FLOX_ENV_CACHE/pip"
+
 
 cd "$FLOX_ENV_PROJECT"
 '''

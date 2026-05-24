@@ -1,0 +1,55 @@
+schema-version = "1.11.0"
+
+# Flox equivalent of nikolaik/python-nodejs Docker image
+# Provides: Python 3 + Node.js + package managers (uv, poetry, pipenv, yarn)
+
+[install]
+# Python runtime
+python3.pkg-path = "python3"
+
+# Node.js runtime (includes npm and corepack)
+nodejs.pkg-path = "nodejs"
+
+# Python package managers
+uv.pkg-path = "uv"
+poetry.pkg-path = "poetry"
+pipenv.pkg-path = "pipenv"
+
+# Node.js package managers
+yarn-berry.pkg-path = "yarn-berry"
+
+[vars]
+# The Dockerfile sets POETRY_HOME=/usr/local to install poetry globally.
+# In Flox, poetry is already on PATH via [install], so this is unnecessary.
+# Retained for compatibility with scripts that reference it.
+POETRY_HOME = "$FLOX_ENV"
+
+[hook]
+on-activate = '''
+export UV_CACHE_DIR="$FLOX_ENV_CACHE/uv"
+export PIP_CACHE_DIR="$FLOX_ENV_CACHE/pip"
+export npm_config_cache="$FLOX_ENV_CACHE/npm"
+
+mkdir -p "$UV_CACHE_DIR" "$PIP_CACHE_DIR" "$npm_config_cache"
+
+cd "$FLOX_ENV_PROJECT"
+'''
+
+[profile]
+common = '''
+# Verify toolchain on first activation
+if [ "${FLOX_ACTIVATE_START_SERVICES:-}" != "true" ]; then
+  python3 --version 2>/dev/null | head -1
+  node --version 2>/dev/null | head -1
+fi
+'''
+
+[services]
+
+[options]
+systems = [
+  "aarch64-darwin",
+  "aarch64-linux",
+  "x86_64-darwin",
+  "x86_64-linux",
+]

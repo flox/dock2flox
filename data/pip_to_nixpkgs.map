@@ -1,0 +1,73 @@
+# PyPI package name -> Flox catalog pkg-path
+# Format: pip_name<TAB>nixpkgs_path<TAB>notes (optional)
+# Used when parsing `pip install` / `uv pip install` commands
+
+# Package managers / build tools (top-level Flox packages)
+uv	uv
+pipenv	pipenv
+poetry	poetry
+hatch	hatch
+pdm	python313Packages.pdm
+tox	python313Packages.tox
+nox	python313Packages.nox
+flit	python313Packages.flit-core
+twine	python313Packages.twine
+build	python313Packages.build
+
+# Common dev tools (top-level Flox packages)
+black	python313Packages.black
+ruff	ruff
+mypy	python313Packages.mypy
+pylint	python313Packages.pylint
+isort	python313Packages.isort
+flake8	python313Packages.flake8
+bandit	python313Packages.bandit
+pre-commit	pre-commit
+
+# Testing
+pytest	python313Packages.pytest
+pytest-cov	python313Packages.pytest-cov
+coverage	python313Packages.coverage
+hypothesis	python313Packages.hypothesis
+
+# Web frameworks
+flask	python313Packages.flask
+django	python313Packages.django
+fastapi	python313Packages.fastapi
+uvicorn	python313Packages.uvicorn
+gunicorn	python313Packages.gunicorn
+starlette	python313Packages.starlette
+
+# Data / science
+numpy	python313Packages.numpy
+pandas	python313Packages.pandas
+scipy	python313Packages.scipy
+matplotlib	python313Packages.matplotlib
+scikit-learn	python313Packages.scikit-learn
+jupyter	python313Packages.jupyter
+ipython	python313Packages.ipython
+
+# Database
+sqlalchemy	python313Packages.sqlalchemy
+alembic	python313Packages.alembic
+psycopg2	python313Packages.psycopg2
+
+# HTTP / networking
+requests	python313Packages.requests
+httpx	python313Packages.httpx
+aiohttp	python313Packages.aiohttp
+boto3	python313Packages.boto3
+urllib3	python313Packages.urllib3
+
+# Utilities
+pydantic	python313Packages.pydantic
+click	python313Packages.click
+rich	python313Packages.rich
+typer	python313Packages.typer
+celery	python313Packages.celery
+redis	python313Packages.redis
+
+# Skip these (included with python3 or not standalone tools)
+pip	_skip_
+setuptools	_skip_
+wheel	_skip_

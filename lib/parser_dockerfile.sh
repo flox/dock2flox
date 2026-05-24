@@ -247,6 +247,18 @@ _parse_run() {
     run_body=$(echo "$line" | sed -E 's/^RUN\s+//i')
     run_body=$(_substitute_args "$run_body")
 
+    # Enhancement 1: Check full RUN body for known installer patterns BEFORE splitting
+    # Emit install record if found, but only short-circuit if the RUN has no other
+    # meaningful commands (apt/pip/npm installs)
+    local _installer_found=0
+    if _detect_known_installer "$run_body" "$ir_file" "$line_num"; then
+        _installer_found=1
+        # Short-circuit only if no other package managers present
+        if ! [[ "$run_body" =~ (apt-get|apk|pip|pip3|npm)[[:space:]]+(install|add) ]]; then
+            return 0
+        fi
+    fi
+
     # Split on && to handle chained commands
     local IFS_BAK="$IFS"
     local -a commands=()
@@ -352,17 +364,136 @@ _extract_yum_packages() {
 
 _extract_pip_install() {
     local cmd="$1" ir_file="$2" line_num="$3"
-    # pip/uv installs become hook commands, not [install] entries
-    # Strip flags like --no-cache-dir, --upgrade, -r
-    local cleaned
-    cleaned=$(echo "$cmd" | sed -E 's/--[a-z-]+(=[^ ]+)?//g; s/-[a-zA-Z]( [^ ]+)?//g')
-    ir_hook "$ir_file" "100" "# pip: $cmd" "$line_num"
+    local map_file="$DOCK2FLOX_DATA/pip_to_nixpkgs.map"
+
+    # Extract package names: strip the command prefix, flags, and version specifiers
+    local pkg_list
+    pkg_list=$(echo "$cmd" | sed -E '
+        s/.*pip[3]?\s+install\s+//
+        s/--[a-z][-a-z]*(=[^ ]+)?//g
+        s/-[a-zA-Z]( [^ ]+)?//g
+        s/-r [^ ]+//g
+    ')
+
+    local -a unmapped_pkgs=()
+    local pkg nixpkgs_path
+
+    for pkg in $pkg_list; do
+        # Skip empty, flags, paths, URLs
+        [[ -z "$pkg" ]] && continue
+        [[ "$pkg" == -* ]] && continue
+        [[ "$pkg" == .* || "$pkg" == /* ]] && continue
+        [[ "$pkg" == http* ]] && continue
+
+        # Strip version specifiers (>=, <=, ~=, ==, [extras])
+        pkg=$(echo "$pkg" | sed -E 's/[><=~!]=?.*//; s/\[.*\]//')
+        [[ -z "$pkg" ]] && continue
+
+        # Look up in pip_to_nixpkgs.map
+        nixpkgs_path=""
+        if [[ -f "$map_file" ]]; then
+            nixpkgs_path=$(awk -F'\t' -v p="$pkg" 'tolower($1) == tolower(p) {print $2; exit}' "$map_file")
+        fi
+
+        if [[ "$nixpkgs_path" == "_skip_" ]]; then
+            log_verbose "pip: skipping $pkg (included with python)"
+            continue
+        elif [[ -n "$nixpkgs_path" ]]; then
+            local install_id
+            if [[ "$nixpkgs_path" == *.* ]]; then
+                install_id="${nixpkgs_path##*.}"
+            else
+                install_id="$nixpkgs_path"
+            fi
+            ir_install "$ir_file" "$install_id" "$nixpkgs_path" "" "" "EXACT" "$line_num" "from pip install"
+            log_verbose "pip: $pkg -> $nixpkgs_path (EXACT)"
+        else
+            unmapped_pkgs+=("$pkg")
+            log_verbose "pip: $pkg -> unmapped (will remain as hook)"
+        fi
+    done
+
+    # Emit remaining unmapped packages as a uv pip install hook
+    if [[ ${#unmapped_pkgs[@]} -gt 0 ]]; then
+        local remaining="${unmapped_pkgs[*]}"
+        ir_hook "$ir_file" "100" "# pip packages not in Flox catalog (install manually):" "$line_num"
+        ir_hook "$ir_file" "101" "# uv pip install $remaining" "$line_num"
+    fi
 }
 
 _extract_npm_global() {
     local cmd="$1" ir_file="$2" line_num="$3"
-    # npm install -g -> could be a hook or could map to an [install]
-    ir_hook "$ir_file" "100" "# npm global: $cmd" "$line_num"
+    local map_file="$DOCK2FLOX_DATA/npm_to_nixpkgs.map"
+
+    # Extract package names after -g flag
+    local pkg_list
+    pkg_list=$(echo "$cmd" | sed -E 's/.*install\s+-g\s+//' | sed -E 's/--[a-z-]+(=[^ ]+)?//g')
+
+    local -a unmapped_pkgs=()
+    local pkg nixpkgs_path
+
+    for pkg in $pkg_list; do
+        [[ -z "$pkg" ]] && continue
+        [[ "$pkg" == -* ]] && continue
+
+        # Strip version specifier (@version)
+        pkg="${pkg%%@*}"
+        [[ -z "$pkg" ]] && continue
+
+        # Look up in npm_to_nixpkgs.map
+        nixpkgs_path=""
+        if [[ -f "$map_file" ]]; then
+            nixpkgs_path=$(awk -F'\t' -v p="$pkg" '$1 == p {print $2; exit}' "$map_file")
+        fi
+
+        if [[ "$nixpkgs_path" == "_skip_" ]]; then
+            log_verbose "npm: skipping $pkg"
+            continue
+        elif [[ -n "$nixpkgs_path" ]]; then
+            local install_id
+            if [[ "$nixpkgs_path" == *.* ]]; then
+                install_id="${nixpkgs_path##*.}"
+            else
+                install_id="$nixpkgs_path"
+            fi
+            ir_install "$ir_file" "$install_id" "$nixpkgs_path" "" "" "EXACT" "$line_num" "from npm install -g"
+            log_verbose "npm: $pkg -> $nixpkgs_path (EXACT)"
+        else
+            unmapped_pkgs+=("$pkg")
+            log_verbose "npm: $pkg -> unmapped"
+        fi
+    done
+
+    # Emit remaining as hook
+    if [[ ${#unmapped_pkgs[@]} -gt 0 ]]; then
+        local remaining="${unmapped_pkgs[*]}"
+        ir_hook "$ir_file" "100" "# npm globals not in Flox catalog:" "$line_num"
+        ir_hook "$ir_file" "101" "# npm install -g $remaining" "$line_num"
+    fi
+}
+
+# --- Known installer pattern detection ---
+
+_detect_known_installer() {
+    local run_body="$1" ir_file="$2" line_num="$3"
+    local map_file="$DOCK2FLOX_DATA/known_installers.map"
+
+    [[ ! -f "$map_file" ]] && return 1
+
+    local pattern tool_name pkg_path
+    while IFS=$'\t' read -r pattern tool_name pkg_path; do
+        # Skip comments and empty lines
+        [[ -z "$pattern" || "$pattern" == "#"* ]] && continue
+
+        # Check if the full RUN body contains this URL pattern
+        if [[ "$run_body" == *"$pattern"* ]]; then
+            log_verbose "Known installer detected: $tool_name (pattern: $pattern)"
+            ir_install "$ir_file" "$tool_name" "$pkg_path" "" "" "EXACT" "$line_num" "detected installer script for $tool_name"
+            return 0
+        fi
+    done < "$map_file"
+
+    return 1
 }
 
 _extract_mkdir() {

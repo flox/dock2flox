@@ -14,6 +14,13 @@ NODE_ENV = "production"
 PORT = "3000"
 
 [hook]
+on-activate = '''
+export npm_config_cache="$FLOX_ENV_CACHE/npm"
+mkdir -p "$FLOX_ENV_CACHE/npm"
+
+
+cd "$FLOX_ENV_PROJECT"
+'''
 
 [services]
 
