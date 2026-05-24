@@ -289,7 +289,7 @@ _parse_run() {
             _extract_pip_install "$cmd" "$ir_file" "$line_num"
         elif [[ "$cmd" =~ uv[[:space:]]+pip[[:space:]]+install ]]; then
             _extract_pip_install "$cmd" "$ir_file" "$line_num"
-        elif [[ "$cmd" =~ npm[[:space:]]+install[[:space:]]+-g ]]; then
+        elif [[ "$cmd" =~ npm[[:space:]]+(i|install)[[:space:]]+-g ]]; then
             _extract_npm_global "$cmd" "$ir_file" "$line_num"
         elif [[ "$cmd" =~ mkdir[[:space:]]+-p ]]; then
             _extract_mkdir "$cmd" "$ir_file" "$line_num"
@@ -379,11 +379,21 @@ _extract_pip_install() {
     local pkg nixpkgs_path
 
     for pkg in $pkg_list; do
-        # Skip empty, flags, paths, URLs
+        # Skip empty, flags, paths, URLs, VCS refs
         [[ -z "$pkg" ]] && continue
         [[ "$pkg" == -* ]] && continue
         [[ "$pkg" == .* || "$pkg" == /* ]] && continue
         [[ "$pkg" == http* ]] && continue
+        [[ "$pkg" == git+* ]] && continue
+        [[ "$pkg" == git@* ]] && continue
+        [[ "$pkg" == file:* ]] && continue
+        [[ "$pkg" == ssh:* ]] && continue
+
+        # Strip surrounding quotes
+        pkg="${pkg#\"}"
+        pkg="${pkg%\"}"
+        pkg="${pkg#\'}"
+        pkg="${pkg%\'}"
 
         # Strip version specifiers (>=, <=, ~=, ==, [extras])
         pkg=$(echo "$pkg" | sed -E 's/[><=~!]=?.*//; s/\[.*\]//')
@@ -436,8 +446,14 @@ _extract_npm_global() {
         [[ -z "$pkg" ]] && continue
         [[ "$pkg" == -* ]] && continue
 
-        # Strip version specifier (@version)
-        pkg="${pkg%%@*}"
+        # Strip version specifier (@version) — handle scoped packages (@scope/name@ver)
+        if [[ "$pkg" == @*/* ]]; then
+            # Scoped package: @scope/name@version -> @scope/name
+            pkg=$(echo "$pkg" | sed -E 's/(@[^/]+\/[^@]+)@.*/\1/')
+        else
+            # Regular package: name@version -> name
+            pkg="${pkg%%@*}"
+        fi
         [[ -z "$pkg" ]] && continue
 
         # Look up in npm_to_nixpkgs.map

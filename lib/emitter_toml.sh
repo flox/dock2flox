@@ -40,6 +40,11 @@ _infer_cache_hooks() {
 
     [[ ! -f "$cache_map" ]] && return 0
 
+    # Guard: don't inject if already done (idempotency)
+    if { grep "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | grep -q "FLOX_ENV_CACHE"; then
+        return 0
+    fi
+
     # Detect which ecosystems are present in INSTALL records
     local installs
     installs=$({ grep "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
@@ -48,19 +53,19 @@ _infer_cache_hooks() {
     local -A ecosystems_detected=()
 
     # Check for python
-    if echo "$installs" | grep -qi "python"; then
+    if echo "$installs" | grep -q "python"; then
         ecosystems_detected[python]=1
     fi
     # Check for nodejs
-    if echo "$installs" | grep -qi "nodejs\|node"; then
+    if echo "$installs" | grep -q "nodejs\|node"; then
         ecosystems_detected[nodejs]=1
     fi
     # Check for rust
-    if echo "$installs" | grep -qi "rustc\|cargo"; then
+    if echo "$installs" | grep -q "rustc\|cargo"; then
         ecosystems_detected[rust]=1
     fi
-    # Check for go
-    if echo "$installs" | grep -qi "${IR_DELIM}go${IR_DELIM}\|${IR_DELIM}go$"; then
+    # Check for go (exact match using delimiters to avoid matching "mongo", "golang" etc.)
+    if echo "$installs" | grep -q "${IR_DELIM}go${IR_DELIM}"; then
         ecosystems_detected[go]=1
     fi
 
