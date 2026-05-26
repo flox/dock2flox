@@ -155,4 +155,24 @@ The tool extracted environment variables from all three services, generated `PGH
 
 **What it missed:** The `DATABASE_URL` still references `db` (the Compose service hostname) rather than `localhost`. A team reviewing this manifest would update it to `postgresql://postgres:secret@localhost:5432/myapp` to match the local connection. The `POSTGRES_PASSWORD=secret` value is a development placeholder; teams should replace it with a secret reference or env-var injection for anything beyond local dev.
 
+**Two options for managing backing services:**
+
+The example above emits connection variables only — teams start and stop backing containers outside Flox (via `docker compose up -d` / `docker compose down`). This keeps Flox and Docker Compose fully independent.
+
+Alternatively, teams can wrap Compose services in Flox service definitions so that `flox activate -s` starts the containers and `flox services stop` tears them down. The Compose file stays as the source of truth for container configuration; Flox manages the lifecycle:
+
+```toml
+[services.db]
+command = "docker compose up -d db"
+is-daemon = true
+shutdown.command = "docker compose stop db && docker compose rm -f db"
+
+[services.cache]
+command = "docker compose up -d cache"
+is-daemon = true
+shutdown.command = "docker compose stop cache && docker compose rm -f cache"
+```
+
+This pattern lets engineers run `flox activate -s` and get both the project runtime and its backing services in one step. To preserve containers between sessions, remove the `docker compose rm -f ...` from the shutdown commands. Either pattern works — the choice depends on whether the team wants Flox to own the full lifecycle or just the project environment.
+
 The output is a starting point, not a finished product. Teams should review the generated manifest, adjust package choices, and verify the environment with `flox activate` before committing it alongside the repo.

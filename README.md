@@ -106,6 +106,17 @@ bin/dock2flox --services flox docker-compose.yml
 
 With `--services container`, you get connection variables (`PGHOST`, `PGPORT`, `REDIS_HOST`, etc.) so your code finds the existing containers. With `--services flox`, you get actual `[services]` definitions that Flox starts for you.
 
+Teams can also wrap Compose services in Flox service definitions, keeping the Compose file as the source of truth while Flox manages the lifecycle:
+
+```toml
+[services.db]
+command = "docker compose up -d db"
+is-daemon = true
+shutdown.command = "docker compose stop db && docker compose rm -f db"
+```
+
+This lets `flox activate -s` start both the project runtime and its backing containers in one step.
+
 ## Safety Model
 
 dock2flox never executes your Dockerfile commands on your machine. The interpreter:
@@ -244,6 +255,6 @@ Then run `tests/run_tests.sh` to verify.
 
 - **Not a container replacement** — dock2flox produces development environments, not OCI images
 - **Package coverage** — static mapping tables cover ~600 common apt and apk packages; uncommon ones need `--validate` or manual mapping
-- **Compose orchestration** — networks, volumes, secrets, health checks are preserved as metadata but not enforced by Flox
+- **Compose orchestration** — dock2flox preserves networks, volumes, secrets, and health checks as metadata but Flox does not enforce them
 - **RUN interpretation** — handles variables, loops, conditionals, and heredocs, but complex scripting (downloaded scripts, generated files) may still need review
 - **devcontainer.json** — not yet supported
