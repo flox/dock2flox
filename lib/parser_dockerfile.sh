@@ -1566,6 +1566,9 @@ _extract_pip_install() {
         if [[ "$nixpkgs_path" == "_skip_" ]]; then
             log_verbose "pip: skipping $pkg (included with python)"
             continue
+        elif [[ "$nixpkgs_path" == "_project_" ]]; then
+            unmapped_pkgs+=("$pkg")
+            log_verbose "pip: $pkg -> project graph (not Flox [install])"
         elif [[ -n "$nixpkgs_path" ]]; then
             local install_id
             if [[ "$nixpkgs_path" == *.* ]]; then
@@ -1753,6 +1756,8 @@ _extract_pip_install_argv() {
 
         if [[ "$nixpkgs_path" == "_skip_" ]]; then
             :
+        elif [[ "$nixpkgs_path" == "_project_" ]]; then
+            unmapped_pkgs+=("$arg")
         elif [[ -n "$nixpkgs_path" ]]; then
             local install_id
             if [[ "$nixpkgs_path" == *.* ]]; then

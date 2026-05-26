@@ -1,8 +1,23 @@
 # PyPI package name -> Flox catalog pkg-path
 # Format: pip_name<TAB>nixpkgs_path<TAB>notes (optional)
 # Used when parsing `pip install` / `uv pip install` commands
+#
+# Sentinels:
+#   _skip_    = included with python3, ignore entirely
+#   _project_ = belongs in project graph (pyproject.toml / uv.lock), not Flox [install]
+#
+# Classification calculus (contract scope):
+#   [install] = CLI tools invoked from shell/CI/hooks, or native-extension packages
+#               that couple to system libraries (ABI, headers, pg_config, etc.)
+#   _project_ = libraries imported by project code whose compatibility is confined
+#               within the Python dependency graph
 
-# Package managers / build tools (top-level Flox packages)
+# Skip (included with python3)
+pip	_skip_
+setuptools	_skip_
+wheel	_skip_
+
+# Package managers / build tools -> Flox [install]
 uv	uv
 pipenv	pipenv
 poetry	poetry
@@ -14,7 +29,7 @@ flit	python313Packages.flit-core
 twine	python313Packages.twine
 build	python313Packages.build
 
-# Common dev tools (top-level Flox packages)
+# CLI dev tools (invoked from shell/CI/hooks) -> Flox [install]
 black	python313Packages.black
 ruff	ruff
 mypy	python313Packages.mypy
@@ -23,51 +38,102 @@ isort	python313Packages.isort
 flake8	python313Packages.flake8
 bandit	python313Packages.bandit
 pre-commit	pre-commit
+autopep8	python313Packages.autopep8
+pyright	pyright
 
-# Testing
+# CLI test runners -> Flox [install]
 pytest	python313Packages.pytest
 pytest-cov	python313Packages.pytest-cov
 coverage	python313Packages.coverage
-hypothesis	python313Packages.hypothesis
 
-# Web frameworks
-flask	python313Packages.flask
-django	python313Packages.django
-fastapi	python313Packages.fastapi
-uvicorn	python313Packages.uvicorn
+# Migration / process CLIs -> Flox [install]
+alembic	python313Packages.alembic
+celery	python313Packages.celery
 gunicorn	python313Packages.gunicorn
-starlette	python313Packages.starlette
+supervisor	python313Packages.supervisor
 
-# Data / science
-numpy	python313Packages.numpy
-pandas	python313Packages.pandas
-scipy	python313Packages.scipy
-matplotlib	python313Packages.matplotlib
-scikit-learn	python313Packages.scikit-learn
+# Interactive tools -> Flox [install]
 jupyter	python313Packages.jupyter
 ipython	python313Packages.ipython
+notebook	python313Packages.notebook
 
-# Database
-sqlalchemy	python313Packages.sqlalchemy
-alembic	python313Packages.alembic
+# Native-extension packages (couple to system libs) -> Flox [install]
 psycopg2	python313Packages.psycopg2
+psycopg2-binary	python313Packages.psycopg2
+numpy	python313Packages.numpy
+scipy	python313Packages.scipy
+matplotlib	python313Packages.matplotlib
+pillow	python313Packages.pillow
+cryptography	python313Packages.cryptography
+cffi	python313Packages.cffi
+lxml	python313Packages.lxml
+greenlet	python313Packages.greenlet
+grpcio	python313Packages.grpcio
+pyzmq	python313Packages.pyzmq
 
-# HTTP / networking
-requests	python313Packages.requests
-httpx	python313Packages.httpx
-aiohttp	python313Packages.aiohttp
-boto3	python313Packages.boto3
-urllib3	python313Packages.urllib3
+# Frameworks imported by project code -> _project_
+flask	_project_
+django	_project_
+fastapi	_project_
+starlette	_project_
+uvicorn	_project_
+sanic	_project_
+tornado	_project_
+pyramid	_project_
+bottle	_project_
 
-# Utilities
-pydantic	python313Packages.pydantic
-click	python313Packages.click
-rich	python313Packages.rich
-typer	python313Packages.typer
-celery	python313Packages.celery
-redis	python313Packages.redis
+# Libraries imported by project code -> _project_
+sqlalchemy	_project_
+pydantic	_project_
+pydantic-settings	_project_
+requests	_project_
+httpx	_project_
+aiohttp	_project_
+boto3	_project_
+botocore	_project_
+urllib3	_project_
+click	_project_
+rich	_project_
+typer	_project_
+redis	_project_
+hypothesis	_project_
+attrs	_project_
+marshmallow	_project_
+python-dotenv	_project_
+python-dateutil	_project_
+arrow	_project_
+pendulum	_project_
+jinja2	_project_
+mako	_project_
+pyyaml	_project_
+toml	_project_
+orjson	_project_
+ujson	_project_
+msgpack	_project_
 
-# Skip these (included with python3 or not standalone tools)
-pip	_skip_
-setuptools	_skip_
-wheel	_skip_
+# Data / ML libraries imported by project code -> _project_
+pandas	_project_
+scikit-learn	_project_
+polars	_project_
+dask	_project_
+xarray	_project_
+statsmodels	_project_
+seaborn	_project_
+plotly	_project_
+bokeh	_project_
+tensorflow	_project_
+torch	_project_
+transformers	_project_
+keras	_project_
+lightgbm	_project_
+xgboost	_project_
+
+# Test libraries imported by project code -> _project_
+factory-boy	_project_
+faker	_project_
+freezegun	_project_
+respx	_project_
+pytest-asyncio	_project_
+pytest-mock	_project_
+pytest-xdist	_project_
+mock	_project_
