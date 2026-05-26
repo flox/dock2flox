@@ -69,7 +69,7 @@ The output is a complete Flox `manifest.toml` with:
 
 | Your Dockerfile | Becomes |
 |---|---|
-| `FROM python:3.11` | `python311.pkg-path = "python311"` with version |
+| `FROM python:3.11` | `python3.pkg-path = "python311"` with version |
 | `RUN apt-get install -y curl git` | `curl.pkg-path = "curl"` etc. |
 | `RUN pip install uv pipenv` | `uv.pkg-path = "uv"` (native Flox package) |
 | `RUN curl ... nodejs.org ...` (20 lines) | `nodejs.pkg-path = "nodejs"` (1 line) |
