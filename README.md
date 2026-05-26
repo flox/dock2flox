@@ -129,7 +129,7 @@ Run with `--validate` to use live `flox search` calls to upgrade LOW/UNMAPPED en
 
 ## Multi-Stage Dockerfiles
 
-dock2flox automatically handles multi-stage builds — only the **final stage** is converted. Builder stages with compilation tools are recognized and skipped. ARG values are tracked across stages.
+dock2flox automatically handles multi-stage builds. It resolves the **runtime inheritance chain** — when the final stage inherits from a named intermediate stage (e.g., `FROM ruby AS mastodon` where `ruby` is an earlier stage), dock2flox extracts packages from both the final stage and its ancestors. It excludes builder stages that are only referenced by `COPY --from`, and tracks ARG and ENV values across stages.
 
 ## Auto-Generated Cache Hooks
 
@@ -195,8 +195,8 @@ ENVIRONMENT VARIABLES:
 ## Running Tests
 
 ```bash
-tests/run_tests.sh          # 27 release-gate tests
-python3 tests/run_tests.py  # Full 94-test suite
+tests/run_tests.sh          # 26 release-gate tests
+python3 tests/run_tests.py  # Full 93-test suite
 ```
 
 ## Project Layout
@@ -243,7 +243,7 @@ Then run `tests/run_tests.sh` to verify.
 ## Limitations
 
 - **Not a container replacement** — dock2flox produces development environments, not OCI images
-- **Package coverage** — static mapping tables cover ~200 common packages; uncommon ones need `--validate` or manual mapping
+- **Package coverage** — static mapping tables cover ~600 common apt and apk packages; uncommon ones need `--validate` or manual mapping
 - **Compose orchestration** — networks, volumes, secrets, health checks are preserved as metadata but not enforced by Flox
 - **RUN interpretation** — handles variables, loops, conditionals, and heredocs, but complex scripting (downloaded scripts, generated files) may still need review
 - **devcontainer.json** — not yet supported
