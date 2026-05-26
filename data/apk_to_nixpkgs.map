@@ -3,6 +3,7 @@
 
 # Build tools
 build-base	gcc	also install gnumake and binutils
+alpine-sdk	gcc	meta-package similar to build-essential
 gcc	gcc
 g++	gcc
 make	gnumake
@@ -13,6 +14,15 @@ libtool	libtool
 pkgconf	pkg-config
 patch	patch
 ninja	ninja
+meson	meson
+scons	scons
+nasm	nasm
+yasm	yasm
+gettext	gettext
+gettext-dev	gettext
+doxygen	doxygen
+swig	swig
+ccache	ccache
 
 # Core utilities
 curl	curl
@@ -36,14 +46,43 @@ tree	tree
 rsync	rsync
 socat	socat
 netcat-openbsd	netcat-gnu
+less	less
+vim	vim
+nano	nano
+htop	htop
 
 # Networking and security
 ca-certificates	cacert
 openssl	openssl
 openssl-dev	openssl
+libressl-dev	libressl
 gnupg	gnupg
 openssh	openssh
 openssh-client	openssh
+
+# System libraries (Alpine-specific)
+musl-dev	musl
+linux-headers	linuxHeaders
+libc6-compat	glibc	Alpine compatibility shim
+
+# Network tools
+iproute2	iproute2
+iputils	iputils
+bind-tools	dnsutils	Alpine equivalent of dnsutils
+nmap	nmap
+tcpdump	tcpdump
+traceroute	traceroute
+
+# Diagnostics
+procps	procps
+strace	strace
+lsof	lsof
+gdb	gdb
+valgrind	valgrind
+
+# Version control
+mercurial	mercurial
+subversion	subversion
 
 # Python
 python3	python3
@@ -54,15 +93,62 @@ py3-wheel	python313Packages.wheel
 
 # Node.js
 nodejs	nodejs
+nodejs-current	nodejs
 npm	nodejs
 yarn	yarn
+pnpm	nodePackages.pnpm
 
 # Ruby
 ruby	ruby
 ruby-dev	ruby
+ruby-bundler	bundler
 
 # Go
 go	go
+
+# Rust
+rust	rustc
+cargo	cargo
+
+# Java
+openjdk8	jdk8
+openjdk11	jdk11
+openjdk17	jdk17
+openjdk21	jdk21
+
+# PHP (unversioned — versioned php82-*, php83-*, php84-* handled by heuristic)
+php	php
+php-fpm	php
+php-dev	php
+php-common	php
+php-cli	php
+php-bcmath	php
+php-curl	php
+php-gd	php
+php-intl	php
+php-json	php
+php-mbstring	php
+php-mysql	php
+php-pgsql	php
+php-sqlite3	php
+php-xml	php
+php-zip	php
+php-pdo	php
+php-phar	php
+php-openssl	php
+php-tokenizer	php
+php-fileinfo	php
+php-ctype	php
+php-session	php
+php-redis	php
+php-dom	php
+php-pdo_mysql	php
+php-pdo_pgsql	php
+
+# Web servers
+nginx	nginx
+nginx-doc	nginx-doc
+apache2	apacheHttpd
 
 # Database clients
 postgresql-client	postgresql
@@ -73,6 +159,7 @@ mariadb-dev	mariadb
 redis	redis
 sqlite	sqlite
 sqlite-dev	sqlite
+mongodb-tools	mongoc
 
 # Common libraries
 zlib-dev	zlib
@@ -80,6 +167,7 @@ readline-dev	readline
 ncurses-dev	ncurses
 libffi-dev	libffi
 libxml2-dev	libxml2
+libxml2	libxml2
 libxslt-dev	libxslt
 yaml-dev	libyaml
 curl-dev	curl
@@ -94,16 +182,112 @@ pcre-dev	pcre
 pcre2-dev	pcre2
 lz4-dev	lz4
 zstd-dev	zstd
+zstd	zstd
 libsodium-dev	libsodium
 protobuf-dev	protobuf
 protoc	protobuf
 libuv-dev	libuv
-linux-headers	linuxHeaders
+glib-dev	glib
+gobject-introspection-dev	gobject-introspection
+
+# Image libraries
+libwebp-dev	libwebp
+tiff-dev	libtiff
+giflib-dev	giflib
+libheif-dev	libheif
+openjpeg-dev	openjpeg
+lcms2-dev	lcms2
+libspng-dev	libspng
+libvips-dev	vips
+
+# Math / science
+openblas-dev	openblas
+lapack-dev	lapack
+hdf5-dev	hdf5
+gsl-dev	gsl
+fftw-dev	fftw
+
+# Data / messaging
+librdkafka-dev	rdkafka
+zeromq-dev	zeromq
+rabbitmq-c-dev	rabbitmq-c
+snappy-dev	snappy
+
+# Networking libraries
+libssh-dev	libssh
+libssh2-dev	libssh2
+libgit2-dev	libgit2
+libevent-dev	libevent
+nghttp2-dev	nghttp2
+openldap-dev	openldap
+cyrus-sasl-dev	cyrus_sasl
+libldap	openldap
+
+# XML security
+xmlsec-dev	xmlsec
+xmlsec	xmlsec
+
+# Video / codecs
+ffmpeg	ffmpeg
+ffmpeg-dev	ffmpeg
+x264-dev	x264
+x265-dev	x265
+libvpx-dev	libvpx
+dav1d-dev	dav1d
+libtheora-dev	libtheora
+lame-dev	lame
+libvorbis-dev	libvorbis
+opus-dev	libopus
+flac-dev	flac
+libass-dev	libass
+v4l-utils-dev	v4l-utils
+
+# Browsers
+chromium	chromium
+chromium-chromedriver	chromedriver
+
+# Container / init tools
+tini	tini
+patchelf	patchelf
+
+# Serialization
+flatbuffers-dev	flatbuffers
+msgpack-c-dev	msgpack
+capnproto-dev	capnproto
+thrift-dev	thrift
+
+# Infrastructure CLIs
+aws-cli	awscli2
+kubectl	kubectl
+terraform	terraform
+helm	kubernetes-helm
+docker-cli	docker-client
+ansible	ansible
+
+# Document processing (from Mattermost)
+poppler-utils	poppler_utils
+wv	wv
+unrtf	unrtf
+tidy-html5	html-tidy
+mailcap	mailcap
 
 # Time/locale
 tzdata	tzdata
 
-# Misc
+# Compression
+pigz	pigz
+
+# Misc tools
 graphviz	graphviz
-ffmpeg	ffmpeg
 imagemagick	imagemagick
+ghostscript	ghostscript
+pandoc	pandoc
+shellcheck	shellcheck
+tmux	tmux
+screen	screen
+fzf	fzf
+ripgrep	ripgrep
+fd	fd
+bat	bat
+exa	eza
+direnv	direnv

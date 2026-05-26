@@ -163,7 +163,13 @@ _heuristic_transform() {
         return 0
     fi
 
-    # Heuristic 5: strip common suffixes (-bin, -common, -utils).
+    # Heuristic 5: versioned Alpine PHP packages (php82-curl, php83-gd, php84, etc.) → php
+    if [[ "$pkg_name" =~ ^php[0-9]+ ]]; then
+        printf 'php\tEXACT\theuristic: Alpine versioned PHP package %s (extensions built into php)' "$pkg_name"
+        return 0
+    fi
+
+    # Heuristic 6: strip common suffixes (-bin, -common, -utils).
     if [[ "$pkg_name" == *-bin || "$pkg_name" == *-common || "$pkg_name" == *-utils ]]; then
         candidate="${pkg_name%-bin}"
         candidate="${candidate%-common}"
