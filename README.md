@@ -53,7 +53,7 @@ bin/dock2flox --dry-run Dockerfile docker-compose.yml
 bin/dock2flox --dry-run --validate Dockerfile
 ```
 
-If you don't specify files, dock2flox auto-detects `Dockerfile*` and `docker-compose*.yml` in the current directory.
+If you don't specify files, dock2flox auto-detects `Dockerfile*`, `docker-compose*.yml`, and `.devcontainer/devcontainer.json` in the current directory.
 
 ## What You Get
 
@@ -116,6 +116,32 @@ shutdown.command = "docker compose stop db && docker compose rm -f db"
 ```
 
 This lets `flox activate -s` start both the project runtime and its backing containers in one step.
+
+## Handling Dev Containers
+
+dock2flox reads `devcontainer.json` and maps its properties to Flox equivalents:
+
+| devcontainer.json | Flox manifest |
+|---|---|
+| `features` (node, python, go, etc.) | `[install]` with version pins |
+| `containerEnv` | `[vars]` |
+| `remoteEnv` | `[hook]` exports (with `${containerWorkspaceFolder}` → `$FLOX_ENV_PROJECT`) |
+| `postCreateCommand` | `[hook]` activation command |
+| `postAttachCommand` | `[services]` if it looks like a dev server |
+| `build.dockerfile` | Chains to the Dockerfile parser automatically |
+| `dockerComposeFile` | Chains to the Compose parser automatically |
+| `forwardPorts` | REVIEW metadata (host processes don't need forwarding) |
+| `customizations.vscode` | Skipped (editor preferences stay with the editor) |
+
+```bash
+# Convert a devcontainer
+bin/dock2flox --dry-run .devcontainer/devcontainer.json
+
+# Or auto-detect it alongside Dockerfile and Compose
+bin/dock2flox --dry-run
+```
+
+When a devcontainer references a Dockerfile via `build.dockerfile`, dock2flox reads that Dockerfile and extracts its packages into the same manifest. The tool resolves the Dockerfile path relative to `build.context` (per the devcontainer spec), handling both object and string shorthand forms.
 
 ## Safety Model
 
@@ -222,6 +248,8 @@ lib/
   shell_safety_scan.py         Additional safety scanner
   parser_compose.sh            Compose parser (bash fallback)
   parser_compose.py            Compose parser (PyYAML, structured)
+  parser_devcontainer.sh       Dev container parser wrapper
+  parser_devcontainer.py       Dev container JSON parser
   mapper_packages.sh           apt/apk/pip → nixpkgs translation
   mapper_base_images.sh        FROM image:tag → package mapping
   emitter_toml.sh              IR → manifest.toml generation
@@ -237,6 +265,7 @@ data/
   package_conflicts.map        Known package file conflicts
   language_ecosystems.map      Language toolchain mappings
   corepack_tools.map           corepack enable → Flox packages
+  devcontainer_features.map    Dev container feature URIs → Flox packages
   skip_patterns.list           OCI boilerplate to ignore
 ```
 
@@ -257,4 +286,4 @@ Then run `tests/run_tests.sh` to verify.
 - **Package coverage** — static mapping tables cover ~600 common apt and apk packages; uncommon ones need `--validate` or manual mapping
 - **Compose orchestration** — dock2flox preserves networks, volumes, secrets, and health checks as metadata but Flox does not enforce them
 - **RUN interpretation** — handles variables, loops, conditionals, and heredocs, but complex scripting (downloaded scripts, generated files) may still need review
-- **devcontainer.json** — maps features, env vars, lifecycle commands, and service patterns; does not generate companion task wrapper scripts or map VSCode extensions to packages automatically
+- **devcontainer.json** — maps features, env vars, lifecycle commands, and service patterns; chains to Dockerfile and Compose parsers when referenced; does not generate companion task wrapper scripts or map VSCode extensions to packages automatically
