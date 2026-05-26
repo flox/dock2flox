@@ -55,7 +55,31 @@ parse_dockerfile() {
         fi
     done < "$processed"
 
-    # Second pass: parse instructions
+    # Second pass: build stage name maps for multi-stage inheritance
+    local -A stage_name_to_index=()
+    local -A stage_from_target=()
+    local pass2_stage=0
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[[:space:]]*FROM[[:space:]] ]] || continue
+        pass2_stage=$((pass2_stage + 1))
+
+        # Extract image spec (before AS clause)
+        local pass2_image
+        pass2_image=$(printf '%s\n' "$line" | sed -E 's/^FROM[[:space:]]+(--platform=([^[:space:]]+)[[:space:]]+)?//I' | awk '{print $1}')
+        pass2_image=$(_substitute_args "$pass2_image")
+        stage_from_target[$pass2_stage]="$pass2_image"
+
+        # Extract AS name
+        if [[ "$line" =~ [Aa][Ss][[:space:]]+([a-zA-Z0-9_-]+) ]]; then
+            stage_name_to_index["${BASH_REMATCH[1]}"]=$pass2_stage
+        fi
+    done < "$processed"
+
+    # Resolve runtime chain: walk from final stage back through FROM references
+    local -A runtime_chain=()
+    _resolve_runtime_chain "$total_stages" stage_name_to_index stage_from_target runtime_chain
+
+    # Third pass: parse instructions
     local current_stage=0
     line_num=0
     while IFS= read -r line; do
@@ -77,14 +101,14 @@ parse_dockerfile() {
                 _parse_arg "$line" "$line_num"
                 ;;
             ENV)
-                # Only emit from final stage
-                if [[ "$current_stage" -eq "$total_stages" ]]; then
+                # Emit from all stages in the runtime chain (ENV inherits via FROM)
+                if [[ -n "${runtime_chain[$current_stage]:-}" ]]; then
                     _parse_env "$line" "$ir_file" "$line_num"
                 fi
                 ;;
             RUN)
-                # Only emit from final stage
-                if [[ "$current_stage" -eq "$total_stages" ]]; then
+                # Emit from all stages in the runtime chain
+                if [[ -n "${runtime_chain[$current_stage]:-}" ]]; then
                     _parse_run "$line" "$ir_file" "$line_num"
                 fi
                 ;;
@@ -129,7 +153,8 @@ parse_dockerfile() {
                 fi
                 ;;
             SHELL)
-                if [[ "$current_stage" -eq "$total_stages" ]]; then
+                # Emit from all stages in the runtime chain (shell state affects RUN)
+                if [[ -n "${runtime_chain[$current_stage]:-}" ]]; then
                     _parse_shell "$line" "$ir_file" "$line_num"
                 fi
                 ;;
@@ -280,6 +305,29 @@ _write_run_env_file() {
 }
 
 
+_resolve_runtime_chain() {
+    local stage="$1"
+    local -n _names="$2"
+    local -n _targets="$3"
+    local -n _chain="$4"
+    local depth=0 max_depth=20
+
+    while [[ "$stage" -gt 0 && "$depth" -lt "$max_depth" ]]; do
+        _chain[$stage]=1
+        local from_target="${_targets[$stage]:-}"
+        [[ -z "$from_target" ]] && break
+
+        # Check if from_target is a named stage
+        local parent="${_names[$from_target]:-}"
+        if [[ -n "$parent" ]]; then
+            stage="$parent"
+        else
+            break  # External image — end of chain
+        fi
+        depth=$((depth + 1))
+    done
+}
+
 _parse_from() {
     local line="$1" ir_file="$2" line_num="$3" current_stage="$4" total_stages="$5"
 
@@ -304,8 +352,16 @@ _parse_from() {
         stage_name=""
     fi
 
-    # Only map base image for the final stage
-    if [[ "$current_stage" -eq "$total_stages" ]]; then
+    # Check if this stage is in the runtime chain
+    local in_runtime_chain=0
+    [[ -n "${runtime_chain[$current_stage]:-}" ]] && in_runtime_chain=1
+
+    # Check if FROM target is a named stage (not an external image)
+    local from_is_stage=0
+    [[ -n "${stage_name_to_index[$image_spec]:-}" ]] && from_is_stage=1
+
+    if [[ "$in_runtime_chain" -eq 1 && "$from_is_stage" -eq 0 ]]; then
+        # Runtime chain stage with external base image: full setup + map_base_image
         pkg_manager=$(_infer_pkg_manager_from_image "$image_spec")
         current_platform="${platform:-${TARGETPLATFORM:-}}"
         current_arch=$(_platform_to_uname_machine "${current_platform:-}")
@@ -320,15 +376,22 @@ _parse_from() {
         current_shell_kind="sh"
         current_shell_explicit=0
         current_shell_desc="/bin/sh -c"
-        map_base_image "$image_spec" "$ir_file" "$line_num"
-        if [[ -n "$current_platform" ]]; then
-            ir_var "$ir_file" "DOCK2FLOX_CONTAINER_PLATFORM" "$current_platform" "$line_num"
+        if [[ "$current_stage" -eq "$total_stages" ]]; then
+            # Only the final stage emits base image install + platform metadata
+            map_base_image "$image_spec" "$ir_file" "$line_num"
+            if [[ -n "$current_platform" ]]; then
+                ir_var "$ir_file" "DOCK2FLOX_CONTAINER_PLATFORM" "$current_platform" "$line_num"
+            fi
+            if [[ -n "$current_platform" && "$current_arch" != "unknown" ]]; then
+                ir_hook "$ir_file" "$((2100 + line_num))" "# RUN interpreter models uname -m as $current_arch for platform $current_platform." "$line_num"
+            elif [[ -n "$current_platform" ]]; then
+                ir_hook "$ir_file" "$((2100 + line_num))" "# RUN interpreter cannot model uname -m for non-concrete platform $current_platform; architecture-specific extraction requires review." "$line_num"
+            fi
         fi
-        if [[ -n "$current_platform" && "$current_arch" != "unknown" ]]; then
-            ir_hook "$ir_file" "$((2100 + line_num))" "# RUN interpreter models uname -m as $current_arch for platform $current_platform." "$line_num"
-        elif [[ -n "$current_platform" ]]; then
-            ir_hook "$ir_file" "$((2100 + line_num))" "# RUN interpreter cannot model uname -m for non-concrete platform $current_platform; architecture-specific extraction requires review." "$line_num"
-        fi
+    elif [[ "$in_runtime_chain" -eq 1 && "$from_is_stage" -eq 1 ]]; then
+        # Runtime chain stage inheriting from another stage: inherit pkg_manager/arch/shell
+        # (already set by the ancestor stage's processing — don't reset)
+        :
     else
         ir_skip "$ir_file" "FROM $image_spec (stage $current_stage)" "intermediate build stage" "$line_num"
     fi
