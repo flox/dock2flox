@@ -1,0 +1,9 @@
+FROM ubuntu:22.04
+
+RUN npm ci --omit=dev && npm run build
+RUN corepack enable yarn pnpm && yarn install --immutable && yarn build && pnpm install --frozen-lockfile && pnpm run test
+RUN gem install bundler && bundle install --without development && bundle exec rake assets:precompile
+RUN composer install --no-dev --prefer-dist && composer dump-autoload --optimize
+RUN ./mvnw -DskipTests package && gradle build --no-daemon
+RUN cargo fetch && cargo build --release
+RUN go mod download && go build ./cmd/server

@@ -1,0 +1,2 @@
+FROM debian:bookworm
+RUN command /usr/bin/touch /tmp/d2f_command_touch

@@ -1,0 +1,5 @@
+FROM debian:bookworm
+
+RUN if command -v apk; then apk add ca-certificates; else apt-get install -y curl; fi
+RUN echo "Docs mention https://sh.rustup.rs but do not install it"
+RUN cmd="apt-get install -y curl"; eval "$cmd"

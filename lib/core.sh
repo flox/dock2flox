@@ -109,6 +109,15 @@ ir_skip() {
         "$IR_DELIM" "$(_ir_encode "$instruction")" "$IR_DELIM" "$(_ir_encode "$reason")" "$IR_DELIM" "$line_num" >> "$ir_file"
 }
 
+# Write a REVIEW record to the IR file. Review records become TOML comments
+# near the top of the generated manifest so risky or non-portable package
+# assumptions are visible before users activate the environment.
+ir_review() {
+    local ir_file="$1" category="$2" detail="$3" line_num="${4:-0}"
+    printf 'REVIEW%s%s%s%s%s%s\n' \
+        "$IR_DELIM" "$(_ir_encode "$category")" "$IR_DELIM" "$(_ir_encode "$detail")" "$IR_DELIM" "$line_num" >> "$ir_file"
+}
+
 # --- File Auto-Detection ---
 dock2flox_detect_inputs() {
     local dir="${1:-.}"

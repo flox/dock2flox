@@ -1,0 +1,2 @@
+FROM debian:bookworm
+RUN if [ -f /opt/vendor/enabled ]; then apt-get install -y jq; else apt-get install -y curl; fi

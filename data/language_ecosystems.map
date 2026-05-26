@@ -1,0 +1,17 @@
+# Language ecosystem tool -> Flox catalog package
+# Format: tool_key<TAB>install_id<TAB>pkg_path<TAB>notes
+# Keep ecosystem package mappings here rather than hard-coding pkg-paths.
+nodejs	nodejs	nodejs	Node.js runtime for npm/yarn/pnpm project lifecycle
+npm	nodejs	nodejs	npm is provided by the Node.js runtime
+yarn	yarn-berry	yarn-berry	Yarn project package manager
+pnpm	pnpm	nodePackages.pnpm	pnpm project package manager
+ruby	ruby	ruby	Ruby runtime for Bundler/Gemfile projects
+bundler	bundler	bundler	Bundler for Gemfile project dependencies
+php	php	php	PHP runtime for Composer projects
+composer	composer	phpPackages.composer	Composer for PHP project dependencies
+jdk	jdk	jdk	JDK for Maven/Gradle projects
+maven	maven	maven	Maven build tool
+gradle	gradle	gradle	Gradle build tool
+rustc	rustc	rustc	Rust compiler for Cargo projects
+cargo	cargo	cargo	Cargo package manager and build tool
+go	go	go	Go toolchain for modules and builds

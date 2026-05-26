@@ -1,0 +1,8 @@
+FROM ubuntu:22.04
+RUN add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.12=3.12.2-1 custom-lib-dev ./vendor/tool.deb curl/bookworm
+RUN echo "deb [signed-by=/usr/share/keyrings/acme.gpg] https://packages.example.com/debian stable main" > /etc/apt/sources.list.d/acme.list
+RUN curl -fsSL https://packages.example.com/key.gpg | gpg --dearmor -o /usr/share/keyrings/acme.gpg
+RUN apk add --repository https://dl-cdn.alpinelinux.org/alpine/edge/testing --allow-untrusted edge-only-pkg
+RUN dnf config-manager --add-repo https://rpm.example.com/acme.repo && rpm --import https://rpm.example.com/RPM-GPG-KEY && dnf install -y https://rpm.example.com/acme.rpm odd-rpm-devel
+RUN pip install --extra-index-url https://pypi.example.com/simple private-wheel git+ssh://git.example.com/org/pkg.git
+RUN npm config set registry https://npm.example.com && npm install -g --registry https://npm.example.com @acme/cli unknown-global-tool

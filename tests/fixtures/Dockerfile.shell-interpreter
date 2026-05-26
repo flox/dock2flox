@@ -1,0 +1,15 @@
+FROM debian:bookworm
+
+ARG INSTALL_EXTRA=true
+
+RUN pkgs="curl git"; \
+    if [ "$INSTALL_EXTRA" = "true" ]; then \
+      apt-get update && apt-get install -y $pkgs "libpq-dev"; \
+    fi
+
+RUN for tool in yarn pnpm; do \
+      corepack enable "$tool"; \
+    done
+
+RUN echo "apt-get install fakepkg should stay inside quotes; apk add bogus"; \
+    apt-get install -y ca-certificates

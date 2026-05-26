@@ -1,0 +1,24 @@
+FROM --platform=linux/arm64 debian:bookworm
+ENV PKGS="curl jq"
+ENV CMD=/usr/bin/touch
+ARG ACMD=/usr/bin/touch
+RUN apt-get update && apt-get install -y $PKGS
+RUN if [ "$PKGS" = "curl jq" ]; then apt-get install -y ca-certificates; fi
+RUN case "$(uname -m)" in x86_64) apt-get install -y make ;; aarch64|arm64) apt-get install -y wget ;; esac
+RUN /usr/bin/touch /tmp/d2f_absolute_touch
+RUN $CMD /tmp/d2f_envpath_touch
+RUN $ACMD /tmp/d2f_argpath_touch
+RUN command /usr/bin/touch /tmp/d2f_command_touch
+RUN builtin command /usr/bin/touch /tmp/d2f_builtin_command_touch
+RUN echo hello | xargs /usr/bin/touch /tmp/d2f_xargs_touch
+RUN f(){ /usr/bin/touch /tmp/d2f_fn_touch; }; f
+RUN f(){ $CMD /tmp/d2f_fn_env_touch; }; f
+RUN if [ -f /opt/vendor/enabled ]; then apt-get install -y git; else apt-get install -y make; fi
+SHELL ["/bin/sh", "-c"]
+RUN arr=(curl jq); apt-get install -y "${arr[@]}"
+SHELL ["/bin/bash", "-c"]
+RUN arr=(curl jq); apt-get install -y "${arr[@]}"
+RUN time /usr/bin/touch /tmp/d2f_time_touch
+RUN ! /usr/bin/touch /tmp/d2f_bang_touch
+RUN coproc /usr/bin/touch /tmp/d2f_coproc_touch
+RUN { /usr/bin/touch /tmp/d2f_brace_touch; }

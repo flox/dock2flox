@@ -1,0 +1,4 @@
+# Known package file conflicts handled automatically by assigning Flox priority.
+# Format: winner_install_id<TAB>lower_priority_install_id<TAB>conflicting_path<TAB>winner_priority<TAB>lower_priority<TAB>notes
+# Lower priority number wins in Flox.
+corepack	nodejs	bin/corepack	4	5	corepack and nodejs both expose bin/corepack; prefer the explicitly requested standalone corepack shim.

@@ -1,0 +1,5 @@
+FROM debian:bookworm
+ENV CMD=/usr/bin/touch
+RUN command $CMD /tmp/d2f_command_var_touch
+RUN builtin command $CMD /tmp/d2f_builtin_command_var_touch
+RUN echo hello | xargs $CMD /tmp/d2f_xargs_var_touch

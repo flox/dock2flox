@@ -10,6 +10,10 @@ nodejs.pkg-path = "nodejs_20"
 nodejs.version = "20"
 
 [vars]
+DOCK2FLOX_CONTAINER_CMD = "node dist/server.js"
+DOCK2FLOX_CONTAINER_USER = "node"
+DOCK2FLOX_CONTAINER_WORKDIR = "/app"
+DOCK2FLOX_EXPOSED_PORTS = "3000"
 NODE_ENV = "production"
 PORT = "3000"
 
@@ -17,12 +21,26 @@ PORT = "3000"
 on-activate = '''
 export npm_config_cache="$FLOX_ENV_CACHE/npm"
 mkdir -p "$FLOX_ENV_CACHE/npm"
+export DOCK2FLOX_ACTIVATE_DIR="$FLOX_ENV_PROJECT"
 
+# Docker WORKDIR /app preserved; activation directory is mapped below when possible.
+# Docker USER node preserved as metadata; Flox activation does not switch Unix users.
+# Docker CMD preserved for generated app service: node dist/server.js
+# Docker COPY --from=builder /app/dist ./dist preserved as filesystem/build context metadata. Review: build-stage artifacts must be rebuilt or supplied outside Flox.
+# Docker COPY --from=builder /app/node_modules ./node_modules preserved as filesystem/build context metadata. Review: build-stage artifacts must be rebuilt or supplied outside Flox.
+# Docker COPY package*.json ./ preserved as filesystem/build context metadata.
+# Docker EXPOSE 3000 preserved as metadata; Flox does not publish ports automatically.
 
-cd "$FLOX_ENV_PROJECT"
+cd "${DOCK2FLOX_ACTIVATE_DIR:-$FLOX_ENV_PROJECT}"
 '''
 
 [services]
+app.command = '''
+# Derived from Dockerfile ENTRYPOINT/CMD. Review filesystem, user, port, and volume assumptions before treating this as production-equivalent.
+# Original Docker USER: node
+cd "${DOCK2FLOX_ACTIVATE_DIR:-$FLOX_ENV_PROJECT}"
+node dist/server.js
+'''
 
 [options]
 systems = [

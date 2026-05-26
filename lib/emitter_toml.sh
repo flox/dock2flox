@@ -11,6 +11,7 @@ emit_toml() {
     _infer_cache_hooks "$ir_file"
 
     _emit_header
+    _emit_review_comments "$ir_file"
     _emit_install_section "$ir_file"
     _emit_vars_section "$ir_file"
     _emit_hook_section "$ir_file"
@@ -40,10 +41,9 @@ _infer_cache_hooks() {
 
     [[ ! -f "$cache_map" ]] && return 0
 
-    # Guard: don't inject if already done (idempotency)
-    if { grep "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | grep -q "FLOX_ENV_CACHE"; then
-        return 0
-    fi
+    # Detect which ecosystems are present in INSTALL records. Cache hooks are
+    # inferred once immediately before rendering, so do not skip just because a
+    # lifecycle hook mentions FLOX_ENV_CACHE (for example Bundler path setup).
 
     # Detect which ecosystems are present in INSTALL records
     local installs
@@ -67,6 +67,27 @@ _infer_cache_hooks() {
     # Check for go (exact match using delimiters to avoid matching "mongo", "golang" etc.)
     if echo "$installs" | grep -q "${IR_DELIM}go${IR_DELIM}"; then
         ecosystems_detected[go]=1
+    fi
+    if echo "$installs" | grep -q "yarn-berry\|${IR_DELIM}yarn${IR_DELIM}"; then
+        ecosystems_detected[yarn]=1
+    fi
+    if echo "$installs" | grep -q "nodePackages.pnpm\|${IR_DELIM}pnpm${IR_DELIM}"; then
+        ecosystems_detected[pnpm]=1
+    fi
+    if echo "$installs" | grep -q "${IR_DELIM}ruby${IR_DELIM}"; then
+        ecosystems_detected[ruby]=1
+    fi
+    if echo "$installs" | grep -q "${IR_DELIM}bundler${IR_DELIM}"; then
+        ecosystems_detected[bundler]=1
+    fi
+    if echo "$installs" | grep -q "phpPackages.composer\|${IR_DELIM}composer${IR_DELIM}"; then
+        ecosystems_detected[composer]=1
+    fi
+    if echo "$installs" | grep -q "${IR_DELIM}maven${IR_DELIM}"; then
+        ecosystems_detected[maven]=1
+    fi
+    if echo "$installs" | grep -q "${IR_DELIM}gradle${IR_DELIM}"; then
+        ecosystems_detected[gradle]=1
     fi
 
     [[ ${#ecosystems_detected[@]} -eq 0 ]] && return 0
@@ -106,6 +127,60 @@ _infer_cache_hooks() {
     log_verbose "Injected cache hooks for: ${!ecosystems_detected[*]}"
 }
 
+_load_conflict_priorities() {
+    local deduped="$1" priorities_file="$2"
+    local conflict_map="$DOCK2FLOX_DATA/package_conflicts.map"
+
+    [[ ! -f "$conflict_map" ]] && return 0
+    [[ ! -s "$deduped" ]] && return 0
+
+    local installed_ids
+    installed_ids=$(dock2flox_mktemp)
+    cut -d "$IR_DELIM" -f2 "$deduped" | sort -u > "$installed_ids"
+
+    local winner loser conflict_path winner_priority loser_priority notes
+    while IFS=$'\t' read -r winner loser conflict_path winner_priority loser_priority notes; do
+        [[ -z "$winner" || "$winner" == "#"* ]] && continue
+        [[ -z "$loser" || -z "$winner_priority" || -z "$loser_priority" ]] && continue
+
+        if grep -qxF "$winner" "$installed_ids" && grep -qxF "$loser" "$installed_ids"; then
+            local note
+            note="conflict: ${notes:-$winner and $loser both provide $conflict_path}; priorities set automatically"
+            printf '%s\t%s\t%s\n' "$winner" "$winner_priority" "$note" >> "$priorities_file"
+            printf '%s\t%s\t%s\n' "$loser" "$loser_priority" "$note" >> "$priorities_file"
+        fi
+    done < "$conflict_map"
+}
+
+_priority_for_install() {
+    local priorities_file="$1" install_id="$2"
+    [[ ! -s "$priorities_file" ]] && return 0
+    awk -F'\t' -v id="$install_id" '$1 == id && !found { print $2; found=1 }' "$priorities_file"
+}
+
+_priority_note_for_install() {
+    local priorities_file="$1" install_id="$2"
+    [[ ! -s "$priorities_file" ]] && return 0
+    awk -F'\t' -v id="$install_id" '$1 == id && !found { print $3; found=1 }' "$priorities_file"
+}
+
+
+_emit_review_comments() {
+    local ir_file="$1"
+
+    local reviews
+    reviews=$({ grep "^REVIEW${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | sort -t "$IR_DELIM" -k4,4n | awk '!seen[$0]++')
+    [[ -z "$reviews" ]] && return 0
+
+    printf '# Review notes from dock2flox analysis:\n'
+    while IFS="$IR_DELIM" read -r _ category detail line_num; do
+        category=$(_ir_decode "$category")
+        detail=$(_ir_decode "$detail")
+        printf '# REVIEW[%s] line %s: %s\n' "$category" "$line_num" "$detail"
+    done <<< "$reviews"
+    printf '\n'
+}
+
 # --- Section emitters ---
 
 _emit_header() {
@@ -126,21 +201,29 @@ _emit_install_section() {
     deduped=$(dock2flox_mktemp)
 
     # Sort by install_id, then by confidence (EXACT > HIGH > LOW > UNMAPPED)
-    { grep "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | sort -t "$IR_DELIM" -k2,2 -k6,6 | \
-        awk -F "$IR_DELIM" '!seen[$2]++' > "$deduped"
+    { grep "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || true; } \
+        | sort -t "$IR_DELIM" -k2,2 -k6,6 \
+        | awk -F "$IR_DELIM" '!seen[$2]++' > "$deduped"
 
     if [[ ! -s "$deduped" ]]; then
         printf '[install]\n\n'
         return 0
     fi
 
+    local priorities
+    priorities=$(dock2flox_mktemp)
+    _load_conflict_priorities "$deduped" "$priorities"
+
     printf '[install]\n'
 
     while IFS="$IR_DELIM" read -r _ install_id pkg_path version pkg_group confidence line_num notes; do
-        # Decode notes
         notes=$(_ir_decode "$notes")
 
-        # Emit confidence-based comments for non-EXACT entries
+        local priority priority_note
+        priority=$(_priority_for_install "$priorities" "$install_id")
+        priority_note=$(_priority_note_for_install "$priorities" "$install_id")
+
+        # Emit confidence-based comments for non-EXACT entries.
         case "$confidence" in
             UNMAPPED)
                 printf '# UNMAPPED: %s (line %s) — verify with: flox search %s\n' \
@@ -149,25 +232,31 @@ _emit_install_section() {
                 ;;
             LOW)
                 printf '# REVIEW: %s (line %s)\n' "${notes:-$pkg_path}" "$line_num"
+                [[ -n "$priority_note" ]] && printf '# %s\n' "$priority_note"
                 printf '%s.pkg-path = "%s"\n' "$install_id" "$(_toml_escape "$pkg_path")"
                 [[ -n "$version" ]] && printf '%s.version = "%s"\n' "$install_id" "$(_toml_escape "$version")"
                 [[ -n "$pkg_group" ]] && printf '%s.pkg-group = "%s"\n' "$install_id" "$(_toml_escape "$pkg_group")"
+                [[ -n "$priority" ]] && printf '%s.priority = %s\n' "$install_id" "$priority"
                 ;;
             HIGH)
                 if [[ -n "$notes" ]]; then
                     printf '# %s\n' "$notes"
                 fi
+                [[ -n "$priority_note" ]] && printf '# %s\n' "$priority_note"
                 printf '%s.pkg-path = "%s"\n' "$install_id" "$(_toml_escape "$pkg_path")"
                 [[ -n "$version" ]] && printf '%s.version = "%s"\n' "$install_id" "$(_toml_escape "$version")"
                 [[ -n "$pkg_group" ]] && printf '%s.pkg-group = "%s"\n' "$install_id" "$(_toml_escape "$pkg_group")"
+                [[ -n "$priority" ]] && printf '%s.priority = %s\n' "$install_id" "$priority"
                 ;;
             EXACT|*)
                 if [[ -n "$notes" && "$notes" != "from base image"* ]]; then
                     printf '# %s\n' "$notes"
                 fi
+                [[ -n "$priority_note" ]] && printf '# %s\n' "$priority_note"
                 printf '%s.pkg-path = "%s"\n' "$install_id" "$(_toml_escape "$pkg_path")"
                 [[ -n "$version" ]] && printf '%s.version = "%s"\n' "$install_id" "$(_toml_escape "$version")"
                 [[ -n "$pkg_group" ]] && printf '%s.pkg-group = "%s"\n' "$install_id" "$(_toml_escape "$pkg_group")"
+                [[ -n "$priority" ]] && printf '%s.priority = %s\n' "$install_id" "$priority"
                 ;;
         esac
     done < "$deduped"
@@ -222,7 +311,7 @@ _emit_hook_section() {
     # First pass: env exports (order 0xx)
     while IFS="$IR_DELIM" read -r _ order bash_line line_num; do
         bash_line=$(_ir_decode "$bash_line")
-        if [[ "$order" -lt 100 ]]; then
+        if [[ $((10#$order)) -lt 100 ]]; then
             printf '%s\n' "$bash_line"
             has_env_exports=1
         fi
@@ -233,13 +322,17 @@ _emit_hook_section() {
     # Second pass: setup commands and pip/npm comments (order 1xx+)
     while IFS="$IR_DELIM" read -r _ order bash_line line_num; do
         bash_line=$(_ir_decode "$bash_line")
-        if [[ "$order" -ge 100 ]]; then
+        if [[ $((10#$order)) -ge 100 ]]; then
             printf '%s\n' "$bash_line"
         fi
     done <<< "$hooks"
 
-    # Add standard return-to-project
-    printf '\ncd "$FLOX_ENV_PROJECT"\n'
+    # Add standard return-to-project, or the mapped Docker WORKDIR when present.
+    if printf '%s' "$hooks" | grep -q 'DOCK2FLOX_ACTIVATE_DIR'; then
+        printf '\ncd "${DOCK2FLOX_ACTIVATE_DIR:-$FLOX_ENV_PROJECT}"\n'
+    else
+        printf '\ncd "$FLOX_ENV_PROJECT"\n'
+    fi
     printf "'''\n\n"
 }
 

@@ -1,0 +1,85 @@
+name: advanced-stack
+
+x-api-common: &api_common
+  image: ghcr.io/acme/api:1.2
+  env_file:
+    - .env
+    - path: ./secrets.env
+      required: false
+  environment:
+    APP_ENV: development
+    FEATURE_FLAG: "true"
+  depends_on:
+    db:
+      condition: service_healthy
+    cache:
+      condition: service_started
+  networks:
+    backend:
+      aliases:
+        - api.local
+  profiles: [dev]
+  healthcheck:
+    test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+  secrets:
+    - db_password
+  configs:
+    - source: app_config
+      target: /etc/app/config.yml
+
+services:
+  api:
+    <<: *api_common
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: runtime
+      args:
+        RUBY_VERSION: "3.3"
+    command: ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+    ports:
+      - target: 8080
+        published: "18080"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: ./src
+        target: /app/src
+      - app-cache:/cache
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  cache:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    command: ["redis-server", "--appendonly", "yes"]
+
+volumes:
+  pgdata: {}
+  app-cache: {}
+
+networks:
+  backend: {}
+
+secrets:
+  db_password:
+    file: ./db_password.txt
+
+configs:
+  app_config:
+    file: ./config.yml

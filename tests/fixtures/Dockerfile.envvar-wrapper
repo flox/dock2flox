@@ -1,0 +1,4 @@
+FROM debian:bookworm
+ENV CMD=/usr/bin/touch
+RUN env $CMD /tmp/d2f_env_wrapper_touch
+RUN sudo $CMD /tmp/d2f_sudo_wrapper_touch

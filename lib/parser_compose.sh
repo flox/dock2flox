@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # dock2flox Docker Compose parser
-# Reads a docker-compose.yml and emits IR records
-# Uses simple line-by-line YAML parsing (no external YAML library needed)
+# Uses a structured YAML parser when python3/PyYAML are available, then emits
+# the same IR records as the Dockerfile parser. A small legacy fallback remains
+# for systems without python3-yaml; it emits review markers instead of silently
+# pretending to understand advanced Compose features.
 
 # Requires: lib/core.sh, lib/mapper_base_images.sh sourced first
 
@@ -16,26 +18,48 @@ parse_compose() {
 
     log_info "Parsing: $compose_file"
 
+    local parsed=0
+    if command -v python3 >/dev/null 2>&1 && [[ -f "$DOCK2FLOX_ROOT/lib/parser_compose.py" ]]; then
+        local parsed_ir
+        parsed_ir=$(dock2flox_mktemp)
+        if python3 "$DOCK2FLOX_ROOT/lib/parser_compose.py" "$compose_file" > "$parsed_ir"; then
+            cat "$parsed_ir" >> "$ir_file"
+            parsed=1
+        else
+            log_warn "Structured Compose parser failed; using conservative fallback"
+            ir_review "$ir_file" "compose-parser" "structured parser failed; fallback parser used for $compose_file" "0"
+        fi
+    else
+        log_warn "python3/PyYAML not available; using conservative Compose fallback"
+        ir_review "$ir_file" "compose-parser" "python3/PyYAML unavailable; advanced Compose semantics may be incomplete" "0"
+    fi
+
+    if [[ "$parsed" -eq 0 ]]; then
+        _parse_compose_fallback "$compose_file" "$ir_file"
+    fi
+
+    _resolve_service_boundaries "$ir_file"
+}
+
+_parse_compose_fallback() {
+    local compose_file="$1"
+    local ir_file="$2"
+
     local in_services=0
     local current_service=""
-    local current_key=""
-    local indent_level=0
     local service_indent=0
     local line_num=0
+    local current_key=""
     local -A services_found=()
 
     while IFS= read -r line; do
         line_num=$((line_num + 1))
-
-        # Skip empty lines and comments
         [[ "$line" =~ ^[[:space:]]*$ ]] && continue
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
 
-        # Calculate indent
         local stripped="${line#"${line%%[![:space:]]*}"}"
         local current_indent=$(( ${#line} - ${#stripped} ))
 
-        # Top-level key detection
         if [[ "$current_indent" -eq 0 && "$stripped" == "services:" ]]; then
             in_services=1
             continue
@@ -45,182 +69,102 @@ parse_compose() {
             continue
         fi
 
-        if [[ "$in_services" -eq 0 ]]; then
-            continue
-        fi
+        [[ "$in_services" -eq 0 ]] && continue
 
-        # Service-level detection (typically 2-space indent under services:)
         if [[ "$current_indent" -eq 2 && "$stripped" == *":" ]]; then
             current_service="${stripped%%:*}"
             current_service="${current_service// /}"
             service_indent=$current_indent
             services_found["$current_service"]=1
             current_key=""
-            log_verbose "Found service: $current_service (line $line_num)"
             continue
         fi
 
-        # Skip if no current service
         [[ -z "$current_service" ]] && continue
 
-        # Service properties (4-space indent typically)
         if [[ "$current_indent" -gt "$service_indent" ]]; then
-            _parse_compose_property "$stripped" "$current_service" "$current_indent" "$ir_file" "$line_num"
+            _parse_compose_fallback_property "$stripped" "$current_service" "$ir_file" "$line_num" current_key
         fi
-
     done < "$compose_file"
 
-    # Handle service boundary decisions
-    _resolve_service_boundaries "$ir_file"
-
-    log_info "Parsed ${#services_found[@]} service(s): ${!services_found[*]}"
+    log_info "Parsed ${#services_found[@]} service(s) with fallback Compose parser: ${!services_found[*]}"
 }
 
-# --- Internal helpers ---
-
-# State for multi-line values
-declare -g _compose_current_key=""
-declare -g _compose_in_list=0
-declare -g _compose_list_key=""
-
-_parse_compose_property() {
+_parse_compose_fallback_property() {
     local stripped="$1"
     local service="$2"
-    local indent="$3"
-    local ir_file="$4"
-    local line_num="$5"
+    local ir_file="$3"
+    local line_num="$4"
+    local -n current_key_ref="$5"
 
-    # Detect key: value pairs
     if [[ "$stripped" == *":"* && "$stripped" != "- "* ]]; then
         local key="${stripped%%:*}"
-        local value="${stripped#*: }"
+        local value="${stripped#*:}"
         key="${key// /}"
+        value="${value# }"
 
-        # Handle empty value (block follows)
-        if [[ "$value" == "${stripped%%:*}:" || -z "${value// /}" || "$value" == "$key:" ]]; then
-            _compose_current_key="$key"
-            _compose_in_list=0
+        if [[ -z "${value// /}" ]]; then
+            current_key_ref="$key"
             return 0
         fi
 
-        # Strip quotes from value
-        value="${value#\"}"
-        value="${value%\"}"
-        value="${value#\'}"
-        value="${value%\'}"
-
+        value=$(_compose_strip_quotes "$value")
         case "$key" in
             image)
-                _handle_compose_image "$service" "$value" "$ir_file" "$line_num"
+                printf 'SERVICE_IMAGE%s%s%s%s%s%s\n' "$IR_DELIM" "$service" "$IR_DELIM" "$(_ir_encode "$value")" "$IR_DELIM" "$line_num" >> "$ir_file"
+                ir_var "$ir_file" "DOCK2FLOX_COMPOSE_$(printf '%s' "$service" | tr '[:lower:]-' '[:upper:]_')_IMAGE" "$value" "$line_num"
                 ;;
-            command)
-                _handle_compose_command "$service" "$value" "$ir_file" "$line_num"
+            command|entrypoint)
+                printf 'SERVICE_CMD%s%s%s%s%s%s\n' "$IR_DELIM" "$service" "$IR_DELIM" "$(_ir_encode "$value")" "$IR_DELIM" "$line_num" >> "$ir_file"
                 ;;
-            container_name|hostname|restart|depends_on|networks|healthcheck)
-                ir_skip "$ir_file" "$service.$key" "compose orchestration" "$line_num"
-                ;;
-            *)
-                log_verbose "Compose: $service.$key = $value (unhandled)"
+            build|container_name|hostname|restart|depends_on|networks|healthcheck|profiles|secrets|configs|env_file)
+                ir_review "$ir_file" "compose-fallback" "service $service: $key seen but fallback parser cannot fully model it" "$line_num"
                 ;;
         esac
-
-    # Detect list items (- value)
     elif [[ "$stripped" == "- "* ]]; then
         local item="${stripped#- }"
-        # Strip quotes
-        item="${item#\"}"
-        item="${item%\"}"
-        item="${item#\'}"
-        item="${item%\'}"
-
-        case "$_compose_current_key" in
+        item=$(_compose_strip_quotes "$item")
+        case "$current_key_ref" in
             environment)
-                _handle_compose_env_item "$service" "$item" "$ir_file" "$line_num"
+                if [[ "$item" == *=* ]]; then
+                    local name="${item%%=*}"
+                    local value="${item#*=}"
+                    ir_var "$ir_file" "$name" "$value" "$line_num"
+                fi
                 ;;
             ports)
-                _handle_compose_port "$service" "$item" "$ir_file" "$line_num"
+                local container_port="$item"
+                if [[ "$container_port" == *":"* ]]; then
+                    container_port="${container_port##*:}"
+                fi
+                container_port="${container_port%%/*}"
+                local prefix
+                prefix=$(printf '%s' "$service" | tr '[:lower:]-' '[:upper:]_')
+                ir_var "$ir_file" "${prefix}_PORT" "$container_port" "$line_num"
+                ir_review "$ir_file" "compose-networking" "service $service: port mapping preserved by fallback parser: $item" "$line_num"
                 ;;
-            volumes)
-                ir_skip "$ir_file" "$service.volumes: $item" "compose volume mount" "$line_num"
-                ;;
-            *)
-                log_verbose "Compose list item ($service.$_compose_current_key): $item"
+            volumes|secrets|configs)
+                ir_review "$ir_file" "compose-fallback" "service $service: $current_key_ref item preserved for manual review: $item" "$line_num"
                 ;;
         esac
     fi
 }
 
-_handle_compose_image() {
-    local service="$1"
-    local image="$2"
-    local ir_file="$3"
-    local line_num="$4"
-
-    # Store image info for service boundary decision
-    # Tag as SERVICE_IMAGE in IR for later processing
-    printf 'SERVICE_IMAGE%s%s%s%s%s%s\n' "$IR_DELIM" "$service" "$IR_DELIM" "$(_ir_encode "$image")" "$IR_DELIM" "$line_num" >> "$ir_file"
+_compose_strip_quotes() {
+    local value="$1"
+    value="${value#\"}"
+    value="${value%\"}"
+    value="${value#\'}"
+    value="${value%\'}"
+    printf '%s' "$value"
 }
-
-_handle_compose_command() {
-    local service="$1"
-    local command="$2"
-    local ir_file="$3"
-    local line_num="$4"
-
-    # Store for service boundary decision
-    printf 'SERVICE_CMD%s%s%s%s%s%s\n' "$IR_DELIM" "$service" "$IR_DELIM" "$(_ir_encode "$command")" "$IR_DELIM" "$line_num" >> "$ir_file"
-}
-
-_handle_compose_env_item() {
-    local service="$1"
-    local item="$2"
-    local ir_file="$3"
-    local line_num="$4"
-
-    # Parse KEY=VALUE
-    if [[ "$item" == *"="* ]]; then
-        local name="${item%%=*}"
-        local value="${item#*=}"
-        ir_var "$ir_file" "$name" "$value" "$line_num"
-    fi
-}
-
-_handle_compose_port() {
-    local service="$1"
-    local port_spec="$2"
-    local ir_file="$3"
-    local line_num="$4"
-
-    # Extract host port from "HOST:CONTAINER" or "HOST:CONTAINER/proto"
-    local host_port container_port
-    if [[ "$port_spec" == *":"* ]]; then
-        host_port="${port_spec%%:*}"
-        container_port="${port_spec#*:}"
-        container_port="${container_port%%/*}"
-    else
-        host_port="$port_spec"
-        container_port="$port_spec"
-    fi
-
-    # Emit as a variable hint (e.g., SERVICE_PORT)
-    local var_name
-    var_name=$(echo "${service}_PORT" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-    ir_var "$ir_file" "$var_name" "$container_port" "$line_num"
-
-    ir_skip "$ir_file" "$service ports: $port_spec" "container networking" "$line_num"
-}
-
-# --- Service boundary resolution ---
 
 _resolve_service_boundaries() {
     local ir_file="$1"
-
     local mode="${DOCK2FLOX_SERVICES_MODE:-container}"
 
-    # Collect SERVICE_IMAGE records
     local service_images
     service_images=$({ grep "^SERVICE_IMAGE${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
-
     [[ -z "$service_images" ]] && return 0
 
     while IFS="$IR_DELIM" read -r _ service image line_num; do
@@ -241,13 +185,14 @@ _resolve_service_boundaries() {
                     decision="container"
                 fi
                 ;;
+            *)
+                decision="container"
+                ;;
         esac
 
         _emit_service_decision "$service" "$image" "$decision" "$ir_file" "$line_num"
-
     done <<< "$service_images"
 
-    # Remove temporary SERVICE_IMAGE and SERVICE_CMD records
     local cleaned
     cleaned=$(dock2flox_mktemp)
     { grep -v "^SERVICE_IMAGE${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | { grep -v "^SERVICE_CMD${IR_DELIM}" 2>/dev/null || true; } > "$cleaned"
@@ -257,10 +202,9 @@ _resolve_service_boundaries() {
 _prompt_service_decision() {
     local service="$1"
     local image="$2"
-
     local choice
     choice=$(dock2flox_prompt_choice \
-        "Service '$service' (image: $image) — convert to Flox service or keep as container?" \
+        "Service '$service' (image: $image) - convert to Flox service or keep as container?" \
         "container" "flox")
     printf '%s' "$choice"
 }
@@ -272,17 +216,13 @@ _emit_service_decision() {
     local ir_file="$4"
     local line_num="$5"
 
-    # Get any command override
     local cmd=""
-    cmd=$({ grep -F "SERVICE_CMD${IR_DELIM}${service}${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | head -1 | cut -d "$IR_DELIM" -f3)
+    cmd=$({ grep -F "SERVICE_CMD${IR_DELIM}${service}${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | tail -1 | cut -d "$IR_DELIM" -f3)
     [[ -n "$cmd" ]] && cmd=$(_ir_decode "$cmd")
 
     case "$decision" in
         flox)
-            # Map image to a Flox service definition
             map_base_image "$image" "$ir_file" "$line_num"
-
-            # Generate service command
             local service_cmd
             service_cmd=$(_generate_service_command "$service" "$image" "$cmd")
             if [[ -n "$service_cmd" ]]; then
@@ -290,9 +230,9 @@ _emit_service_decision() {
             fi
             ;;
         container)
-            # Emit connection variables only
             _emit_container_vars "$service" "$image" "$ir_file" "$line_num"
             ir_skip "$ir_file" "$service (image: $image)" "kept as external container" "$line_num"
+            ir_review "$ir_file" "compose-service" "service $service kept as external container image $image" "$line_num"
             ;;
     esac
 }
@@ -302,13 +242,11 @@ _generate_service_command() {
     local image="$2"
     local cmd="$3"
 
-    # Use explicit command if provided
     if [[ -n "$cmd" ]]; then
         printf '%s' "$cmd"
         return 0
     fi
 
-    # Generate default commands for well-known services
     local image_base="${image%%:*}"
     image_base="${image_base##*/}"
 
@@ -334,12 +272,11 @@ _emit_container_vars() {
     local ir_file="$3"
     local line_num="$4"
 
-    # Emit standard connection variables for well-known services
     local image_base="${image%%:*}"
     image_base="${image_base##*/}"
 
     local prefix
-    prefix=$(echo "$service" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+    prefix=$(printf '%s' "$service" | tr '[:lower:]-' '[:upper:]_')
 
     case "$image_base" in
         postgres|postgresql)

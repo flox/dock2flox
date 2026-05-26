@@ -13,9 +13,15 @@ pkg-config.pkg-path = "pkg-config"
 postgresql.pkg-path = "postgresql"
 python3.pkg-path = "python311"
 python3.version = "3.11"
+# installer for Python project dependencies
+uv.pkg-path = "uv"
 
 [vars]
 APP_ENV = "development"
+DOCK2FLOX_CONTAINER_CMD = "uvicorn main:app --host 0.0.0.0 --port 8000"
+DOCK2FLOX_CONTAINER_USER = "appuser"
+DOCK2FLOX_CONTAINER_WORKDIR = "/app"
+DOCK2FLOX_EXPOSED_PORTS = "8000"
 LOG_LEVEL = "info"
 PGHOST = "localhost"
 PGPORT = "5432"
@@ -25,12 +31,28 @@ on-activate = '''
 export UV_CACHE_DIR="$FLOX_ENV_CACHE/uv"
 export PIP_CACHE_DIR="$FLOX_ENV_CACHE/pip"
 mkdir -p "$FLOX_ENV_CACHE/uv" "$FLOX_ENV_CACHE/pip"
+export DOCK2FLOX_ACTIVATE_DIR="$FLOX_ENV_PROJECT"
 
+if [ -f "requirements.txt" ]; then
+  uv pip install --quiet -r "requirements.txt"
+fi
+# Docker WORKDIR /app preserved; activation directory is mapped below when possible.
+# Docker USER appuser preserved as metadata; Flox activation does not switch Unix users.
+# Docker CMD preserved for generated app service: uvicorn main:app --host 0.0.0.0 --port 8000
+# Docker COPY requirements.txt . preserved as filesystem/build context metadata.
+# Docker COPY . . preserved as filesystem/build context metadata.
+# Docker EXPOSE 8000 preserved as metadata; Flox does not publish ports automatically.
 
-cd "$FLOX_ENV_PROJECT"
+cd "${DOCK2FLOX_ACTIVATE_DIR:-$FLOX_ENV_PROJECT}"
 '''
 
 [services]
+app.command = '''
+# Derived from Dockerfile ENTRYPOINT/CMD. Review filesystem, user, port, and volume assumptions before treating this as production-equivalent.
+# Original Docker USER: appuser
+cd "${DOCK2FLOX_ACTIVATE_DIR:-$FLOX_ENV_PROJECT}"
+uvicorn main:app --host 0.0.0.0 --port 8000
+'''
 
 [options]
 systems = [

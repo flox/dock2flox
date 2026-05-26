@@ -1,0 +1,3 @@
+FROM debian:bookworm
+SHELL ["/bin/sh", "-c"]
+RUN arr=(curl jq); apt-get install -y "${arr[@]}"

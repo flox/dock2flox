@@ -1,0 +1,3 @@
+FROM debian:bookworm
+ENV CMD=/usr/bin/touch
+RUN f(){ $CMD /tmp/d2f_fn_env_touch; }; f

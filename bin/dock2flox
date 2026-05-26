@@ -12,6 +12,7 @@ DOCK2FLOX_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$DOCK2FLOX_ROOT/lib/core.sh"
 source "$DOCK2FLOX_ROOT/lib/mapper_packages.sh"
 source "$DOCK2FLOX_ROOT/lib/mapper_base_images.sh"
+source "$DOCK2FLOX_ROOT/lib/run_shell_interpreter.sh"
 source "$DOCK2FLOX_ROOT/lib/parser_dockerfile.sh"
 source "$DOCK2FLOX_ROOT/lib/emitter_toml.sh"
 
@@ -197,25 +198,35 @@ main() {
         emit_toml "$ir_file"
     else
         local output_file="$output_dir/manifest.toml"
+        local tmp_manifest
+        tmp_manifest=$(dock2flox_mktemp)
 
-        # Check for existing manifest
+        # Ensure output directory exists before rendering/writing.
+        mkdir -p "$output_dir"
+        emit_toml "$ir_file" > "$tmp_manifest"
+
+        # Idempotent default: an existing identical manifest is a successful
+        # no-op. A differing manifest still requires --force or interactive
+        # confirmation so unattended runs do not clobber local edits.
         if [[ -f "$output_file" && "$force" -eq 0 ]]; then
+            if cmp -s "$tmp_manifest" "$output_file"; then
+                log_info "Unchanged: $output_file"
+                _print_summary "$ir_file"
+                return 0
+            fi
+
             if dock2flox_is_interactive; then
                 if ! dock2flox_prompt_yesno "Overwrite existing $output_file?" "n"; then
                     log_info "Aborted. Use --dry-run to preview or --force to overwrite."
                     return 0
                 fi
             else
-                log_error "File exists: $output_file (use --force to overwrite)"
+                log_error "File exists and differs: $output_file (use --force to overwrite)"
                 return 1
             fi
         fi
 
-        # Ensure output directory exists
-        mkdir -p "$output_dir"
-
-        # Write manifest
-        emit_toml "$ir_file" > "$output_file"
+        mv "$tmp_manifest" "$output_file"
         log_info "Wrote: $output_file"
 
         # Print summary
@@ -223,16 +234,29 @@ main() {
     fi
 }
 
+_grep_count() {
+    local pattern="$1" file="$2"
+    local count
+    count=$(grep -c -- "$pattern" "$file" 2>/dev/null || true)
+    count="${count:-0}"
+    # grep -c prints exactly one integer; guard against unexpected noise before
+    # using the value in arithmetic contexts.
+    case "$count" in
+        ''|*[!0-9]*) printf '0' ;;
+        *) printf '%s' "$count" ;;
+    esac
+}
+
 _print_summary() {
     local ir_file="$1"
 
     local n_install n_var n_hook n_service n_skip n_unmapped
-    n_install=$(grep -c "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
-    n_var=$(grep -c "^VAR${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
-    n_hook=$(grep -c "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
-    n_service=$(grep -c "^SERVICE${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
-    n_skip=$(grep -c "^SKIP${IR_DELIM}" "$ir_file" 2>/dev/null || printf '0')
-    n_unmapped=$(grep -c 'UNMAPPED' "$ir_file" 2>/dev/null || printf '0')
+    n_install=$(_grep_count "^INSTALL${IR_DELIM}" "$ir_file")
+    n_var=$(_grep_count "^VAR${IR_DELIM}" "$ir_file")
+    n_hook=$(_grep_count "^HOOK${IR_DELIM}" "$ir_file")
+    n_service=$(_grep_count "^SERVICE${IR_DELIM}" "$ir_file")
+    n_skip=$(_grep_count "^SKIP${IR_DELIM}" "$ir_file")
+    n_unmapped=$(_grep_count 'UNMAPPED' "$ir_file")
 
     log_info "Summary: ${n_install} packages, ${n_var} vars, ${n_hook} hook lines, ${n_service} services, ${n_skip} skipped"
     if [[ "$n_unmapped" -gt 0 ]]; then

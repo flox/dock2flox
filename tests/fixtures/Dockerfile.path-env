@@ -1,0 +1,2 @@
+FROM debian:bookworm
+RUN /usr/bin/env bash -c 'apt-get install -y curl'

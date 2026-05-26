@@ -1,0 +1,2 @@
+FROM debian:bookworm
+RUN echo analyzer-wrote-this > host_was_touched

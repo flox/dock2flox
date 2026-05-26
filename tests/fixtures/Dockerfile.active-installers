@@ -1,0 +1,4 @@
+FROM debian:bookworm
+
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y && \
+    wget -qO- https://install.python-poetry.org | python3 -

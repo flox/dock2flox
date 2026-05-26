@@ -1,0 +1,6 @@
+# corepack tool name -> Flox pkg-path mapping
+# Format: tool_name<TAB>pkg_path<TAB>notes
+# Used when parsing `corepack enable <tool>` commands. These commands only enable
+# shims in containers; a Flox package makes the tool available directly.
+yarn	yarn-berry	from corepack enable yarn
+pnpm	nodePackages.pnpm	from corepack enable pnpm

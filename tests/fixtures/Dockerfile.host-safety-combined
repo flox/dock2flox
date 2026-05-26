@@ -1,0 +1,24 @@
+FROM debian:bookworm
+ENV CMD=/usr/bin/touch
+ARG ACMD=/usr/bin/touch
+RUN /usr/bin/touch /tmp/d2f_absolute_touch
+RUN ./install.sh
+RUN /usr/bin/env bash -c 'apt-get install -y curl'
+RUN $CMD /tmp/d2f_envpath_touch
+RUN $ACMD /tmp/d2f_argpath_touch
+RUN env $CMD /tmp/d2f_env_wrapper_touch
+RUN sudo $CMD /tmp/d2f_sudo_wrapper_touch
+RUN command /usr/bin/touch /tmp/d2f_command_touch
+RUN builtin command /usr/bin/touch /tmp/d2f_builtin_command_touch
+RUN echo hello | xargs /usr/bin/touch /tmp/d2f_xargs_touch
+RUN command $CMD /tmp/d2f_command_var_touch
+RUN builtin command $CMD /tmp/d2f_builtin_command_var_touch
+RUN echo hello | xargs $CMD /tmp/d2f_xargs_var_touch
+RUN f(){ /usr/bin/touch /tmp/d2f_fn_touch; }; f
+RUN f(){ $CMD /tmp/d2f_fn_env_touch; }; f
+RUN function f { /usr/bin/touch /tmp/d2f_fn_kw_touch; }; f
+RUN apt-get update && apt-get install -y curl
+RUN time /usr/bin/touch /tmp/d2f_time_touch
+RUN ! /usr/bin/touch /tmp/d2f_bang_touch
+RUN coproc /usr/bin/touch /tmp/d2f_coproc_touch
+RUN { /usr/bin/touch /tmp/d2f_brace_touch; }

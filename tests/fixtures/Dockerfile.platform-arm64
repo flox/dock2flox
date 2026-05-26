@@ -1,0 +1,5 @@
+FROM --platform=linux/arm64 debian:bookworm
+RUN case "$(uname -m)" in \
+      x86_64) apt-get install -y jq ;; \
+      aarch64|arm64) apt-get install -y curl ;; \
+    esac

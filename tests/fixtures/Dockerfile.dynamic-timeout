@@ -1,0 +1,4 @@
+FROM alpine:3.19
+ENV LOOP=true
+RUN while "$LOOP"; do :; done
+RUN apk add --no-cache ca-certificates

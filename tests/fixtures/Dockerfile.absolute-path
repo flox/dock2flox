@@ -1,0 +1,2 @@
+FROM debian:bookworm
+RUN /usr/bin/touch /tmp/d2f_absolute_touch

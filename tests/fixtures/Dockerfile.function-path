@@ -1,0 +1,2 @@
+FROM debian:bookworm
+RUN f(){ /usr/bin/touch /tmp/d2f_fn_touch; }; f
