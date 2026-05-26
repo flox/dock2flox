@@ -52,7 +52,7 @@ def ir_review(category: str, detail: str, line: int = 0) -> None:
 
 
 def ir_service_image(service: str, image: str, line: int = 0) -> None:
-    emit("SERVICE_IMAGE", sanitize_service_name(service), image, line)
+    emit("SERVICE_IMAGE", sanitize_service_name(service), image, service, line)
 
 
 def ir_service_cmd(service: str, command: str, line: int = 0) -> None:

@@ -102,6 +102,14 @@ ir_service() {
         "$IR_DELIM" "$name" "$IR_DELIM" "$(_ir_encode "$command")" "$IR_DELIM" "$line_num" >> "$ir_file"
 }
 
+# Write a SERVICE_COMPOSE record to the IR file (docker compose lifecycle wrapper)
+ir_service_compose() {
+    local ir_file="$1" name="$2" startup="$3" shutdown="$4" line_num="${5:-0}"
+    printf 'SERVICE_COMPOSE%s%s%s%s%s%s%s%s\n' \
+        "$IR_DELIM" "$name" "$IR_DELIM" "$(_ir_encode "$startup")" \
+        "$IR_DELIM" "$(_ir_encode "$shutdown")" "$IR_DELIM" "$line_num" >> "$ir_file"
+}
+
 # Write a SKIP record to the IR file
 ir_skip() {
     local ir_file="$1" instruction="$2" reason="$3" line_num="${4:-0}"

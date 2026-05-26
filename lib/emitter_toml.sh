@@ -390,21 +390,39 @@ _emit_hook_section() {
 _emit_services_section() {
     local ir_file="$1"
 
+    # Regular services (command only) — exclude SERVICE_COMPOSE records
     local services
-    services=$({ grep "^SERVICE${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
+    services=$({ grep "^SERVICE${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | { grep -v "^SERVICE_COMPOSE${IR_DELIM}" 2>/dev/null || true; })
 
-    if [[ -z "$services" ]]; then
+    # Compose-wrapped services (is-daemon + shutdown)
+    local compose_services
+    compose_services=$({ grep "^SERVICE_COMPOSE${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
+
+    if [[ -z "$services" && -z "$compose_services" ]]; then
         printf '[services]\n\n'
         return 0
     fi
 
     printf '[services]\n'
 
-    while IFS="$IR_DELIM" read -r _ name command line_num; do
-        command=$(_ir_decode "$command")
-        # Always use multi-line literal for service commands (safe, no escaping needed)
-        printf "%s.command = '''\n%s\n'''\n" "$name" "$command"
-    done <<< "$services"
+    if [[ -n "$services" ]]; then
+        while IFS="$IR_DELIM" read -r _ name command line_num; do
+            command=$(_ir_decode "$command")
+            printf "%s.command = '''\n%s\n'''\n" "$name" "$command"
+        done <<< "$services"
+    fi
+
+    if [[ -n "$compose_services" ]]; then
+        printf '# Compose services managed by Flox — start with flox activate -s\n'
+        printf '# Remove docker compose rm -f from shutdown.command to preserve containers between sessions\n'
+        while IFS="$IR_DELIM" read -r _ name startup shutdown line_num; do
+            startup=$(_ir_decode "$startup")
+            shutdown=$(_ir_decode "$shutdown")
+            printf '%s.command = "%s"\n' "$name" "$(_toml_escape "$startup")"
+            printf '%s.is-daemon = true\n' "$name"
+            printf '%s.shutdown.command = "%s"\n' "$name" "$(_toml_escape "$shutdown")"
+        done <<< "$compose_services"
+    fi
 
     printf '\n'
 }

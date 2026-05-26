@@ -39,7 +39,7 @@ OPTIONS:
     -n, --dry-run           Print manifest to stdout, do not write files
     -f, --force             Overwrite existing manifest without confirmation
         --validate          Verify package mappings via flox search
-        --services MODE     Service handling: flox | container | prompt
+        --services MODE     Service handling: flox | compose | container | prompt
                             (default: prompt if TTY, container otherwise)
         --pip MODE          Python package handling: project | flox | cuda | requirements
                             (default: project)

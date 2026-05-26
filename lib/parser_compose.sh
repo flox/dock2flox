@@ -111,7 +111,7 @@ _parse_compose_fallback_property() {
         value=$(_compose_strip_quotes "$value")
         case "$key" in
             image)
-                printf 'SERVICE_IMAGE%s%s%s%s%s%s\n' "$IR_DELIM" "$service" "$IR_DELIM" "$(_ir_encode "$value")" "$IR_DELIM" "$line_num" >> "$ir_file"
+                printf 'SERVICE_IMAGE%s%s%s%s%s%s%s%s\n' "$IR_DELIM" "$service" "$IR_DELIM" "$(_ir_encode "$value")" "$IR_DELIM" "$(_ir_encode "$service")" "$IR_DELIM" "$line_num" >> "$ir_file"
                 ir_var "$ir_file" "DOCK2FLOX_COMPOSE_$(printf '%s' "$service" | tr '[:lower:]-' '[:upper:]_')_IMAGE" "$value" "$line_num"
                 ;;
             command|entrypoint)
@@ -167,13 +167,19 @@ _resolve_service_boundaries() {
     service_images=$({ grep "^SERVICE_IMAGE${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
     [[ -z "$service_images" ]] && return 0
 
-    while IFS="$IR_DELIM" read -r _ service image line_num; do
+    while IFS="$IR_DELIM" read -r _ service image orig_name line_num; do
         image=$(_ir_decode "$image")
+        orig_name=$(_ir_decode "$orig_name")
+        # Fall back to sanitized name if original wasn't provided
+        [[ -z "$orig_name" ]] && orig_name="$service"
         local decision=""
 
         case "$mode" in
             flox)
                 decision="flox"
+                ;;
+            compose)
+                decision="compose"
                 ;;
             container)
                 decision="container"
@@ -190,7 +196,7 @@ _resolve_service_boundaries() {
                 ;;
         esac
 
-        _emit_service_decision "$service" "$image" "$decision" "$ir_file" "$line_num"
+        _emit_service_decision "$service" "$image" "$decision" "$ir_file" "$line_num" "$orig_name"
     done <<< "$service_images"
 
     local cleaned
@@ -204,8 +210,8 @@ _prompt_service_decision() {
     local image="$2"
     local choice
     choice=$(dock2flox_prompt_choice \
-        "Service '$service' (image: $image) - convert to Flox service or keep as container?" \
-        "container" "flox")
+        "Service '$service' (image: $image):" \
+        "container" "compose" "flox")
     printf '%s' "$choice"
 }
 
@@ -215,6 +221,7 @@ _emit_service_decision() {
     local decision="$3"
     local ir_file="$4"
     local line_num="$5"
+    local orig_name="${6:-$service}"
 
     local cmd=""
     cmd=$({ grep -F "SERVICE_CMD${IR_DELIM}${service}${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | tail -1 | cut -d "$IR_DELIM" -f3)
@@ -228,6 +235,14 @@ _emit_service_decision() {
             if [[ -n "$service_cmd" ]]; then
                 ir_service "$ir_file" "$service" "$service_cmd" "$line_num"
             fi
+            ;;
+        compose)
+            _emit_container_vars "$service" "$image" "$ir_file" "$line_num"
+            # Use original YAML service name for docker compose commands
+            ir_service_compose "$ir_file" "$service" \
+                "docker compose up -d $orig_name" \
+                "docker compose stop $orig_name && docker compose rm -f $orig_name" \
+                "$line_num"
             ;;
         container)
             _emit_container_vars "$service" "$image" "$ir_file" "$line_num"
