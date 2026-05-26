@@ -271,6 +271,34 @@ unrtf	unrtf
 tidy-html5	html-tidy
 mailcap	mailcap
 
+# OCR / document processing
+tesseract-ocr	tesseract
+tesseract-ocr-data-eng	tesseract
+unpaper	unpaper
+qpdf	qpdf
+jbig2dec	jbig2dec
+pngquant	pngquant
+zbar-dev	zbar
+zbar	zbar
+
+# Fonts
+font-liberation	liberation_ttf
+ttf-liberation	liberation_ttf
+
+# MIME / file type (mailcap already in Document processing above)
+file-dev	file
+
+# Certificates
+certbot	certbot
+
+# Runtime libraries (non-dev)
+ncurses	ncurses
+libstdc++	gcc-unwrapped
+libgcc	gcc-unwrapped
+libyaml	libyaml
+libxslt	libxslt
+libvips	vips
+
 # Time/locale
 tzdata	tzdata
 

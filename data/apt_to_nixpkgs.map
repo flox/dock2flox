@@ -365,6 +365,49 @@ gettext-base	gettext	base variant maps to same package
 # Compression (filling gaps; xz-utils already in Core utilities above)
 zstd	zstd
 
+# OCR / document processing
+tesseract-ocr	tesseract
+tesseract-ocr-eng	tesseract	language data included in tesseract
+tesseract-ocr-deu	tesseract	language data included in tesseract
+tesseract-ocr-fra	tesseract	language data included in tesseract
+tesseract-ocr-ita	tesseract	language data included in tesseract
+tesseract-ocr-spa	tesseract	language data included in tesseract
+tesseract-ocr-jpn	tesseract	language data included in tesseract
+tesseract-ocr-chi-sim	tesseract	language data included in tesseract
+tesseract-ocr-por	tesseract	language data included in tesseract
+tesseract-ocr-nld	tesseract	language data included in tesseract
+unpaper	unpaper
+qpdf	qpdf
+poppler-utils	poppler_utils
+jbig2dec	jbig2dec
+pngquant	pngquant
+libzbar0	zbar
+libzbar-dev	zbar
+
+# Fonts
+fonts-liberation	liberation_ttf
+fonts-dejavu-core	dejavu_fonts
+
+# MIME / file type detection
+media-types	mailcap
+libmagic1	file	libmagic is part of file package
+libmagic-dev	file
+
+# Image processing
+libvips	vips
+libvips-dev	vips
+libvips42	vips
+
+# Certificates / TLS
+certbot	certbot
+python3-certbot	certbot
+
+# Runtime libraries (non-dev)
+zlib1g	zlib
+libxslt1.1	libxslt
+libyaml-0-2	libyaml
+libldap-common	openldap
+
 # Misc tools
 graphviz	graphviz
 ffmpeg	ffmpeg
