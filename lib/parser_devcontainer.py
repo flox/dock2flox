@@ -255,9 +255,16 @@ def emit_image_and_build(config):
 
     build = config.get("build")
     if build:
-        dockerfile = build.get("dockerfile", "Dockerfile") if isinstance(build, dict) else "Dockerfile"
-        ir_review("devcontainer-build",
-                  f"Build configuration references {dockerfile} — run dock2flox on that Dockerfile separately.")
+        if isinstance(build, str):
+            # String form: "build": ".." means context="..", dockerfile="Dockerfile"
+            context = build
+            dockerfile = "Dockerfile"
+        else:
+            context = build.get("context", ".")
+            dockerfile = build.get("dockerfile", "Dockerfile")
+        # Emit metadata so the bash wrapper can chain to the Dockerfile parser
+        ir_var("DOCK2FLOX_BUILD_CONTEXT", context)
+        ir_var("DOCK2FLOX_BUILD_DOCKERFILE", dockerfile)
 
 
 def emit_skipped_properties(config):

@@ -55,6 +55,46 @@ c = json.loads(text)
 print(c.get('service', ''))
 " 2>/dev/null || true)
 
+    # If build.dockerfile is referenced, chain to Dockerfile parser
+    local build_context build_dockerfile
+    build_context=$(python3 -c "
+import json, re, sys
+text = open('$devcontainer_file').read()
+text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
+text = re.sub(r',\s*([}\]])', r'\1', text)
+c = json.loads(text)
+b = c.get('build')
+if b is None: pass
+elif isinstance(b, str) and b: print(b)
+elif isinstance(b, dict): print(b.get('context', '.'))
+" 2>/dev/null || true)
+    build_dockerfile=$(python3 -c "
+import json, re, sys
+text = open('$devcontainer_file').read()
+text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
+text = re.sub(r',\s*([}\]])', r'\1', text)
+c = json.loads(text)
+b = c.get('build')
+if b is None: pass
+elif isinstance(b, str): print('Dockerfile')
+elif isinstance(b, dict): print(b.get('dockerfile', 'Dockerfile'))
+" 2>/dev/null || true)
+
+    if [[ -n "$build_dockerfile" ]]; then
+        local devcontainer_dir
+        devcontainer_dir=$(dirname "$devcontainer_file")
+        # dockerfile is relative to context; context is relative to devcontainer.json dir
+        local context_path="$devcontainer_dir/${build_context:-.}"
+        local dockerfile_path="$context_path/$build_dockerfile"
+        if [[ -f "$dockerfile_path" ]] && declare -f parse_dockerfile > /dev/null 2>&1; then
+            log_info "Chaining to Dockerfile parser for: $dockerfile_path"
+            parse_dockerfile "$dockerfile_path" "$ir_file"
+        elif [[ -n "$build_context" || -n "$build_dockerfile" ]]; then
+            ir_review "$ir_file" "devcontainer-build" \
+                "build references $build_dockerfile (context: ${build_context:-.}) but file not found at $dockerfile_path" "0"
+        fi
+    fi
+
     if [[ -n "$compose_ref" ]]; then
         local compose_dir
         compose_dir=$(dirname "$devcontainer_file")
