@@ -257,4 +257,4 @@ Then run `tests/run_tests.sh` to verify.
 - **Package coverage** — static mapping tables cover ~600 common apt and apk packages; uncommon ones need `--validate` or manual mapping
 - **Compose orchestration** — dock2flox preserves networks, volumes, secrets, and health checks as metadata but Flox does not enforce them
 - **RUN interpretation** — handles variables, loops, conditionals, and heredocs, but complex scripting (downloaded scripts, generated files) may still need review
-- **devcontainer.json** — not yet supported
+- **devcontainer.json** — maps features, env vars, lifecycle commands, and service patterns; does not generate companion task wrapper scripts or map VSCode extensions to packages automatically

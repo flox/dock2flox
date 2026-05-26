@@ -1,0 +1,28 @@
+# Dev Container Feature URI -> Flox package mapping
+# Format: feature_uri_prefix<TAB>pkg_path<TAB>version_key<TAB>notes
+# The parser strips the version tag (:1, :2) from URIs before lookup.
+# Features not in this table get a REVIEW comment for manual mapping.
+
+# Official devcontainers features (ghcr.io/devcontainers/features/*)
+ghcr.io/devcontainers/features/node	nodejs	version
+ghcr.io/devcontainers/features/python	python3	version
+ghcr.io/devcontainers/features/go	go	version
+ghcr.io/devcontainers/features/rust	rustc	version
+ghcr.io/devcontainers/features/java	jdk	version
+ghcr.io/devcontainers/features/ruby	ruby	version
+ghcr.io/devcontainers/features/php	php	version
+ghcr.io/devcontainers/features/dotnet	dotnet-sdk	version
+ghcr.io/devcontainers/features/terraform	terraform	version
+ghcr.io/devcontainers/features/kubectl-helm-minikube	kubectl	version
+ghcr.io/devcontainers/features/aws-cli	awscli2	version
+ghcr.io/devcontainers/features/azure-cli	azure-cli	version
+ghcr.io/devcontainers/features/docker-in-docker	docker	version
+ghcr.io/devcontainers/features/docker-outside-of-docker	docker-client	version
+ghcr.io/devcontainers/features/git	git	version
+ghcr.io/devcontainers/features/github-cli	gh	version
+ghcr.io/devcontainers/features/sshd	openssh	_
+ghcr.io/devcontainers/features/conda	conda	version
+ghcr.io/devcontainers/features/hugo	hugo	version
+ghcr.io/devcontainers/features/cmake	cmake	version
+ghcr.io/devcontainers/features/ninja	ninja	version
+ghcr.io/devcontainers/features/common-utils	_conditional_	installZsh=zsh

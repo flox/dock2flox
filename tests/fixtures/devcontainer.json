@@ -1,0 +1,28 @@
+{
+  "name": "test-devcontainer",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
+    "ghcr.io/devcontainers/features/common-utils:2": { "installZsh": true }
+  },
+  "containerEnv": {
+    "APP_ENV": "development",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "remoteEnv": {
+    "UV_CACHE_DIR": "${containerWorkspaceFolder}/.cache/uv",
+    "PIP_CACHE_DIR": "${containerWorkspaceFolder}/.cache/pip"
+  },
+  "postCreateCommand": "uv sync && npm ci",
+  "postAttachCommand": "npm run dev",
+  "forwardPorts": [3000],
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"],
+      "settings": {
+        "editor.formatOnSave": true,
+        "python.defaultInterpreterPath": "/workspaces/app/.venv/bin/python"
+      }
+    }
+  }
+}

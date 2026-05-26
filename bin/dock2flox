@@ -23,6 +23,9 @@ fi
 if [[ -f "$DOCK2FLOX_ROOT/lib/validator.sh" ]]; then
     source "$DOCK2FLOX_ROOT/lib/validator.sh"
 fi
+if [[ -f "$DOCK2FLOX_ROOT/lib/parser_devcontainer.sh" ]]; then
+    source "$DOCK2FLOX_ROOT/lib/parser_devcontainer.sh"
+fi
 
 # --- CLI Argument Parsing ---
 
@@ -194,7 +197,11 @@ main() {
                 fi
                 ;;
             devcontainer)
-                log_warn "Devcontainer parser not yet implemented, skipping: $f"
+                if declare -f parse_devcontainer > /dev/null 2>&1; then
+                    parse_devcontainer "$f" "$ir_file"
+                else
+                    log_warn "Devcontainer parser not available, skipping: $f"
+                fi
                 ;;
             *)
                 log_warn "Unknown file type, skipping: $f"

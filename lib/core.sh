@@ -141,6 +141,11 @@ dock2flox_detect_inputs() {
         [[ -f "$f" ]] && found+=("$f")
     done
 
+    # Devcontainer
+    for f in "$dir"/.devcontainer/devcontainer.json "$dir"/devcontainer.json "$dir"/.devcontainer.json; do
+        [[ -f "$f" ]] && found+=("$f")
+    done
+
     printf '%s\n' "${found[@]}"
 }
 
