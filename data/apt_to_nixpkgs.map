@@ -265,6 +265,94 @@ neovim	neovim
 emacs	emacs
 most	most
 
+# Web servers / proxies
+nginx	nginx
+nginx-common	nginx
+nginx-full	nginx
+nginx-extras	nginx
+nginx-light	nginx
+nginx-doc	nginx-doc
+apache2	apacheHttpd
+apache2-bin	apacheHttpd
+apache2-utils	apacheHttpd
+libapache2-mod-php	apacheHttpd
+libapache2-mod-wsgi-py3	apacheHttpd
+
+# PHP (nixpkgs php includes common extensions built-in)
+php	php
+php-cli	php
+php-common	php
+php-fpm	php
+php-dev	php
+php-all-dev	php
+php-bcmath	php	extension built into php
+php-curl	php	extension built into php
+php-gd	php	extension built into php
+php-intl	php	extension built into php
+php-json	php	extension built into php
+php-mbstring	php	extension built into php
+php-mysql	php	extension built into php
+php-pgsql	php	extension built into php
+php-sqlite3	php	extension built into php
+php-xml	php	extension built into php
+php-zip	php	extension built into php
+php-pear	php
+php-redis	php
+php-memcached	php
+php-imagick	php
+php-soap	php
+php-ldap	php
+php-imap	php
+php-net-ftp	php
+php-tokenizer	php
+php-date	php
+
+# Container / init tools
+tini	tini
+gosu	_skip_	container-specific privilege tool
+patchelf	patchelf
+
+# Mastodon / Ruby app runtime libs
+libexpat1	expat
+libexpat1-dev	expat
+libicu-dev	icu
+libicu76	icu
+libidn-dev	libidn
+libidn12	libidn
+libidn11	libidn
+libgdbm-dev	gdbm
+shared-mime-info	shared-mime-info
+liblcms2-dev	lcms2
+liblcms2-2	lcms2
+libspng-dev	libspng
+libspng0	libspng
+libjpeg62-turbo	libjpeg
+libjpeg62-turbo-dev	libjpeg
+libjemalloc2	jemalloc
+libjemalloc-dev	jemalloc
+libnss-wrapper	nss_wrapper
+
+# Video / codec libraries
+libx264-dev	x264
+libx264-164	x264
+libx265-dev	x265
+libx265-215	x265
+libvpx-dev	libvpx
+libvpx9	libvpx
+libdav1d-dev	dav1d
+libdav1d7	dav1d
+libtheora-dev	libtheora
+libtheora0	libtheora
+libmp3lame-dev	lame
+libmp3lame0	lame
+libopencore-amrnb-dev	opencore-amr
+libopencore-amrnb0	opencore-amr
+libopencore-amrwb-dev	opencore-amr
+libopencore-amrwb0	opencore-amr
+
+# Compression (filling gaps; xz-utils already in Core utilities above)
+zstd	zstd
+
 # Misc tools
 graphviz	graphviz
 ffmpeg	ffmpeg

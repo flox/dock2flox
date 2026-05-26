@@ -22,6 +22,11 @@ map_package() {
     # Layer 1: Static table lookup
     nixpkgs_path=$(_lookup_static_map "$pkg_manager" "$pkg_name")
     if [[ -n "$nixpkgs_path" ]]; then
+        # Handle _skip_ sentinel (container-specific packages like gosu)
+        if [[ "$nixpkgs_path" == "_skip_" ]]; then
+            log_verbose "SKIP: $pkg_name (container-specific, not needed in Flox)"
+            return 0
+        fi
         confidence="EXACT"
         install_id=$(_make_install_id "$nixpkgs_path")
         # Check for notes in the map
