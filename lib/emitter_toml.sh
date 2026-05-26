@@ -127,6 +127,49 @@ _infer_cache_hooks() {
     log_verbose "Injected cache hooks for: ${!ecosystems_detected[*]}"
 }
 
+_dedup_cuda_provides() {
+    local deduped="$1"
+    local cuda_map="$DOCK2FLOX_DATA/cuda_packages.map"
+    [[ ! -f "$cuda_map" ]] && return 0
+
+    # Build list of packages that are transitively provided by other installed CUDA packages
+    local -a to_remove=()
+    local provider path provides provided_pkg
+    while IFS=$'\t' read -r provider path provides; do
+        [[ -z "$provider" || "$provider" == "#"* ]] && continue
+        [[ -z "$provides" ]] && continue
+        # If the provider is in the deduped install list
+        if grep -q "${IR_DELIM}${path}${IR_DELIM}" "$deduped" 2>/dev/null; then
+            # Mark each provided package for removal
+            for provided_pkg in $provides; do
+                local provided_path
+                provided_path=$(awk -F'\t' -v p="$provided_pkg" 'tolower($1) == tolower(p) && $1 !~ /^#/ {print $2; exit}' "$cuda_map")
+                if [[ -n "$provided_path" ]]; then
+                    to_remove+=("$provided_path")
+                fi
+            done
+        fi
+    done < "$cuda_map"
+
+    # Remove transitively-provided packages from deduped
+    if [[ ${#to_remove[@]} -gt 0 ]]; then
+        local filtered
+        filtered=$(dock2flox_mktemp)
+        local pkg_path line_match
+        while IFS= read -r line_match; do
+            local should_remove=0
+            for pkg_path in "${to_remove[@]}"; do
+                if [[ "$line_match" == *"${IR_DELIM}${pkg_path}${IR_DELIM}"* ]]; then
+                    should_remove=1
+                    break
+                fi
+            done
+            [[ "$should_remove" -eq 0 ]] && printf '%s\n' "$line_match"
+        done < "$deduped" > "$filtered"
+        cp "$filtered" "$deduped"
+    fi
+}
+
 _load_conflict_priorities() {
     local deduped="$1" priorities_file="$2"
     local conflict_map="$DOCK2FLOX_DATA/package_conflicts.map"
@@ -205,6 +248,9 @@ _emit_install_section() {
         | sort -t "$IR_DELIM" -k2,2 -k6,6 \
         | awk -F "$IR_DELIM" '!seen[$2]++' > "$deduped"
 
+    # CUDA dedup: if torchvision is present, remove standalone torch (it's transitive)
+    _dedup_cuda_provides "$deduped"
+
     if [[ ! -s "$deduped" ]]; then
         printf '[install]\n\n'
         return 0
@@ -259,6 +305,11 @@ _emit_install_section() {
                 [[ -n "$priority" ]] && printf '%s.priority = %s\n' "$install_id" "$priority"
                 ;;
         esac
+
+        # Auto-add systems constraint for flox-cuda packages (Linux-only)
+        if [[ "$pkg_path" == flox-cuda/* ]]; then
+            printf '%s.systems = ["aarch64-linux", "x86_64-linux"]\n' "$install_id"
+        fi
     done < "$deduped"
 
     printf '\n'

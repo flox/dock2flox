@@ -41,11 +41,14 @@ OPTIONS:
         --validate          Verify package mappings via flox search
         --services MODE     Service handling: flox | container | prompt
                             (default: prompt if TTY, container otherwise)
+        --pip MODE          Python package handling: project | flox | cuda | requirements
+                            (default: project)
         --verbose           Show mapping decisions on stderr
     -h, --help              Show this help
 
 ENVIRONMENT VARIABLES:
     DOCK2FLOX_SERVICES      Override service mode (flox|container|prompt)
+    DOCK2FLOX_PIP           Override pip mode (project|flox|cuda|requirements)
     DOCK2FLOX_VERBOSE       Set to 1 for verbose output
 
 EXAMPLES:
@@ -65,6 +68,8 @@ main() {
     local validate=0
     local opt_services=""
     local services_mode=""
+    local opt_pip=""
+    local pip_mode=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -91,6 +96,10 @@ main() {
                 ;;
             --services)
                 opt_services="$2"
+                shift 2
+                ;;
+            --pip)
+                opt_pip="$2"
                 shift 2
                 ;;
             --verbose)
@@ -129,6 +138,16 @@ main() {
         services_mode="container"
     fi
     export DOCK2FLOX_SERVICES_MODE="$services_mode"
+
+    # Determine pip mode
+    if [[ -n "${DOCK2FLOX_PIP:-}" ]]; then
+        pip_mode="$DOCK2FLOX_PIP"
+    elif [[ -n "$opt_pip" ]]; then
+        pip_mode="$opt_pip"
+    else
+        pip_mode="project"
+    fi
+    export DOCK2FLOX_PIP_MODE="$pip_mode"
 
     # Auto-detect inputs if none specified
     if [[ ${#input_files[@]} -eq 0 ]]; then

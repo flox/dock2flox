@@ -1502,6 +1502,96 @@ _extract_yum_packages() {
     done
 }
 
+# --- Pip mode-aware classification ---
+# Shared by _extract_pip_install and _extract_pip_install_argv
+
+_classify_pip_package() {
+    local pkg="$1" nixpkgs_path="$2" ir_file="$3" line_num="$4"
+    local -n _unmapped_ref="$5"
+    local pip_mode="${DOCK2FLOX_PIP_MODE:-project}"
+
+    # Always skip (pip, setuptools, wheel)
+    if [[ "$nixpkgs_path" == "_skip_" ]]; then
+        log_verbose "pip: skipping $pkg (included with python)"
+        return 0
+    fi
+
+    # Mode: requirements — everything goes to project graph, nothing in [install]
+    if [[ "$pip_mode" == "requirements" ]]; then
+        _unmapped_ref+=("$pkg")
+        log_verbose "pip: $pkg -> project graph (--pip=requirements)"
+        return 0
+    fi
+
+    # Mode: cuda — check cuda_packages.map first
+    if [[ "$pip_mode" == "cuda" ]]; then
+        local cuda_path
+        cuda_path=$(_lookup_cuda_package "$pkg")
+        if [[ -n "$cuda_path" ]]; then
+            # Defer CUDA emit — collect into IR now; dedup happens at emit time
+            # because we can't know ordering of pip install args
+            local cuda_id="${cuda_path##*.}"
+            ir_install "$ir_file" "$cuda_id" "$cuda_path" "" "" "EXACT" "$line_num" "CUDA-accelerated via flox-cuda"
+            log_verbose "pip: $pkg -> $cuda_path (CUDA)"
+            return 0
+        fi
+        # Fall through to project-mode logic for non-CUDA packages
+    fi
+
+    # Mode: flox — promote _project_ entries to [install]
+    if [[ "$pip_mode" == "flox" && "$nixpkgs_path" == "_project_" ]]; then
+        local candidate="python313Packages.$pkg"
+        ir_install "$ir_file" "$pkg" "$candidate" "" "" "HIGH" "$line_num" "promoted to [install] by --pip=flox"
+        log_verbose "pip: $pkg -> $candidate (promoted by --pip=flox)"
+        return 0
+    fi
+
+    # Default classification (project mode, or cuda/flox fallthrough)
+    if [[ "$nixpkgs_path" == "_project_" ]]; then
+        _unmapped_ref+=("$pkg")
+        log_verbose "pip: $pkg -> project graph (not Flox [install])"
+    elif [[ -n "$nixpkgs_path" ]]; then
+        local install_id
+        if [[ "$nixpkgs_path" == *.* ]]; then
+            install_id="${nixpkgs_path##*.}"
+        else
+            install_id="$nixpkgs_path"
+        fi
+        ir_install "$ir_file" "$install_id" "$nixpkgs_path" "" "" "EXACT" "$line_num" "from pip install"
+        log_verbose "pip: $pkg -> $nixpkgs_path (EXACT)"
+    else
+        _unmapped_ref+=("$pkg")
+        log_verbose "pip: $pkg -> unmapped (will remain as hook)"
+    fi
+}
+
+_lookup_cuda_package() {
+    local pkg="$1"
+    local cuda_map="$DOCK2FLOX_DATA/cuda_packages.map"
+    [[ ! -f "$cuda_map" ]] && return 0
+    awk -F'\t' -v p="$pkg" 'tolower($1) == tolower(p) && $1 !~ /^#/ {print $2; exit}' "$cuda_map"
+}
+
+_cuda_pkg_already_provided() {
+    local pkg="$1" ir_file="$2"
+    local cuda_map="$DOCK2FLOX_DATA/cuda_packages.map"
+    [[ ! -f "$cuda_map" ]] && return 1
+
+    local provider path provides
+    while IFS=$'\t' read -r provider path provides; do
+        [[ -z "$provider" || "$provider" == "#"* ]] && continue
+        [[ -z "$provides" ]] && continue
+        # If $pkg is in the provides list of another package
+        if [[ " $provides " == *" $pkg "* ]]; then
+            # Check if that provider is already in the IR
+            if { grep "^INSTALL${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | grep -q "${IR_DELIM}${path}${IR_DELIM}"; then
+                return 0
+            fi
+        fi
+    done < "$cuda_map"
+    return 1
+}
+
 _extract_pip_install() {
     local cmd="$1" ir_file="$2" line_num="$3"
     local map_file="$DOCK2FLOX_DATA/pip_to_nixpkgs.map"
@@ -1563,25 +1653,7 @@ _extract_pip_install() {
             nixpkgs_path=$(awk -F'	' -v p="$pkg" 'tolower($1) == tolower(p) && !found {print $2; found=1}' "$map_file")
         fi
 
-        if [[ "$nixpkgs_path" == "_skip_" ]]; then
-            log_verbose "pip: skipping $pkg (included with python)"
-            continue
-        elif [[ "$nixpkgs_path" == "_project_" ]]; then
-            unmapped_pkgs+=("$pkg")
-            log_verbose "pip: $pkg -> project graph (not Flox [install])"
-        elif [[ -n "$nixpkgs_path" ]]; then
-            local install_id
-            if [[ "$nixpkgs_path" == *.* ]]; then
-                install_id="${nixpkgs_path##*.}"
-            else
-                install_id="$nixpkgs_path"
-            fi
-            ir_install "$ir_file" "$install_id" "$nixpkgs_path" "" "" "EXACT" "$line_num" "from pip install"
-            log_verbose "pip: $pkg -> $nixpkgs_path (EXACT)"
-        else
-            unmapped_pkgs+=("$pkg")
-            log_verbose "pip: $pkg -> unmapped (will remain as hook)"
-        fi
+        _classify_pip_package "$pkg" "$nixpkgs_path" "$ir_file" "$line_num" unmapped_pkgs
     done
 
     # Emit remaining unmapped packages as an active uv pip install hook.
@@ -1754,22 +1826,7 @@ _extract_pip_install_argv() {
             nixpkgs_path=$(awk -F'\t' -v p="$pkg" 'tolower($1) == tolower(p) && !found {print $2; found=1}' "$map_file")
         fi
 
-        if [[ "$nixpkgs_path" == "_skip_" ]]; then
-            :
-        elif [[ "$nixpkgs_path" == "_project_" ]]; then
-            unmapped_pkgs+=("$arg")
-        elif [[ -n "$nixpkgs_path" ]]; then
-            local install_id
-            if [[ "$nixpkgs_path" == *.* ]]; then
-                install_id="${nixpkgs_path##*.}"
-            else
-                install_id="$nixpkgs_path"
-            fi
-            ir_install "$ir_file" "$install_id" "$nixpkgs_path" "" "" "EXACT" "$line_num" "from pip install"
-        else
-            unmapped_pkgs+=("$arg")
-            ir_review "$ir_file" "package-map" "$arg from pip has no static Flox mapping; preserving an active uv install hook." "$line_num"
-        fi
+        _classify_pip_package "$arg" "$nixpkgs_path" "$ir_file" "$line_num" unmapped_pkgs
 
         i=$((i + 1))
     done

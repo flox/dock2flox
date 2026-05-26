@@ -1,0 +1,24 @@
+# PyPI ML package name -> flox-cuda catalog path
+# Format: pip_name<TAB>flox_cuda_path<TAB>provides (space-separated transitive deps to dedup)
+# Used when --pip=cuda is specified
+
+# PyTorch ecosystem
+torch	flox-cuda/python3Packages.torch
+torchvision	flox-cuda/python3Packages.torchvision	torch
+torchaudio	flox-cuda/python3Packages.torchaudio	torch
+torchtext	flox-cuda/python3Packages.torchtext	torch
+
+# TensorFlow ecosystem
+tensorflow	flox-cuda/python3Packages.tensorflow
+tensorflow-gpu	flox-cuda/python3Packages.tensorflow
+keras	flox-cuda/python3Packages.keras	tensorflow
+
+# JAX ecosystem
+jax	flox-cuda/python3Packages.jax
+jaxlib	flox-cuda/python3Packages.jaxlib	jax
+
+# Other CUDA-accelerated packages
+cupy	flox-cuda/python3Packages.cupy
+numba	flox-cuda/python3Packages.numba
+rapids-cudf	flox-cuda/python3Packages.cudf
+rapids-cuml	flox-cuda/python3Packages.cuml
