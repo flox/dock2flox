@@ -96,10 +96,24 @@ _infer_cache_hooks() {
     local -a cache_exports=()
     local -a cache_dirs=()
 
+    # Collect existing hook and var variable names to avoid overwriting user values
+    local existing_vars
+    existing_vars=$({ grep "^HOOK${IR_DELIM}\|^VAR${IR_DELIM}" "$ir_file" 2>/dev/null || true; })
+
     local ecosystem export_line
     while IFS=$'\t' read -r ecosystem export_line; do
         [[ -z "$ecosystem" || "$ecosystem" == "#"* ]] && continue
         if [[ -n "${ecosystems_detected[$ecosystem]:-}" ]]; then
+            # Extract variable name from "export VAR_NAME=..."
+            local var_name
+            var_name=$(echo "$export_line" | sed -E 's/^export ([A-Za-z_][A-Za-z0-9_]*)=.*/\1/')
+
+            # Skip if already set by a parsed hook or var — user's value takes precedence
+            if echo "$existing_vars" | grep -q "$var_name=\|${IR_DELIM}${var_name}${IR_DELIM}"; then
+                log_verbose "Cache hook skipped: $var_name already set by parsed input"
+                continue
+            fi
+
             cache_exports+=("$export_line")
             # Extract dir path for mkdir
             local dir_path
