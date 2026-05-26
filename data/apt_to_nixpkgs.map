@@ -350,6 +350,18 @@ libopencore-amrnb0	opencore-amr
 libopencore-amrwb-dev	opencore-amr
 libopencore-amrwb0	opencore-amr
 
+# Browsers / testing
+chromium	chromium
+chromium-driver	chromedriver	apt name differs from nixpkgs
+google-chrome-stable	chromium
+
+# XML security
+libxmlsec1	xmlsec
+libxmlsec1-dev	xmlsec
+
+# Gettext variants
+gettext-base	gettext	base variant maps to same package
+
 # Compression (filling gaps; xz-utils already in Core utilities above)
 zstd	zstd
 
