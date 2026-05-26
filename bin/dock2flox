@@ -211,6 +211,7 @@ main() {
             log_warn "--validate requested but validator not available"
         fi
     fi
+    export DOCK2FLOX_VALIDATED="$validate"
 
     # Emit TOML
     if [[ "$dry_run" -eq 1 ]]; then
@@ -287,7 +288,7 @@ _print_summary() {
     if [[ "$n_unmapped" -gt 0 ]]; then
         log_warn "${n_unmapped} package(s) could not be mapped — search for UNMAPPED in output"
     fi
-    if [[ "$n_non_exact" -gt 0 ]]; then
+    if [[ "$n_non_exact" -gt 0 && "${DOCK2FLOX_VALIDATED:-0}" != "1" ]]; then
         log_warn "${n_non_exact} package(s) mapped heuristically — run with --validate to verify against the Flox catalog"
     fi
 }

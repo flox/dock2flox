@@ -31,45 +31,73 @@ validate_ir() {
     local validated
     validated=$(dock2flox_mktemp)
 
+    local n_confirmed=0 n_corrected=0 n_unresolved=0
+
     while IFS="$IR_DELIM" read -r record_type install_id pkg_path version pkg_group confidence line_num notes; do
         local new_confidence="$confidence"
         local new_notes="$notes"
         local new_pkg_path="$pkg_path"
+        local was_corrected=0
 
-        # Run flox search
+        # Strategy 1: Search for the heuristic guess directly
         local search_result
         search_result=$(_flox_search_quiet "$pkg_path")
 
         if [[ -n "$search_result" ]]; then
-            # Check for exact match (use grep -F for fixed string, not regex)
             if echo "$search_result" | grep -qxF "$pkg_path"; then
+                # Exact match — heuristic was correct
                 new_confidence="EXACT"
                 new_notes="validated via flox search"
                 log_verbose "VALIDATED (exact): $pkg_path"
+                n_confirmed=$((n_confirmed + 1))
             else
-                # Close match found
+                # Close match — search confirmed a real package with a different name
                 local first_match
                 first_match=$(echo "$search_result" | head -1)
-                new_confidence="HIGH"
+                new_confidence="EXACT"
                 new_pkg_path="$first_match"
-                new_notes="flox search suggests: $first_match (original: $pkg_path)"
-                log_verbose "VALIDATED (close): $pkg_path -> $first_match"
+                new_notes="corrected via flox search: $pkg_path -> $first_match"
+                was_corrected=1
+                log_verbose "CORRECTED: $pkg_path -> $first_match"
+                n_corrected=$((n_corrected + 1))
             fi
         else
-            # Try alternative search strategies
+            # Primary search failed — try alternative strategies
             local alt_result=""
+            local resolved=0
 
-            # Strategy 1: lowercase
+            # Strategy 2: lowercase
             alt_result=$(_flox_search_quiet "$(echo "$pkg_path" | tr '[:upper:]' '[:lower:]')")
             if [[ -n "$alt_result" ]]; then
                 local first_match
                 first_match=$(echo "$alt_result" | head -1)
-                new_confidence="HIGH"
+                new_confidence="EXACT"
                 new_pkg_path="$first_match"
-                new_notes="flox search (lowercase) suggests: $first_match"
-                log_verbose "VALIDATED (alt): $pkg_path -> $first_match"
-            else
-                # Strategy 2: strip version numbers
+                new_notes="corrected via flox search (lowercase): $pkg_path -> $first_match"
+                was_corrected=1
+                resolved=1
+                log_verbose "CORRECTED (lowercase): $pkg_path -> $first_match"
+                n_corrected=$((n_corrected + 1))
+            fi
+
+            # Strategy 3: add lib prefix back
+            if [[ "$resolved" -eq 0 && "$pkg_path" != lib* ]]; then
+                alt_result=$(_flox_search_quiet "lib${pkg_path}")
+                if [[ -n "$alt_result" ]]; then
+                    local first_match
+                    first_match=$(echo "$alt_result" | head -1)
+                    new_confidence="EXACT"
+                    new_pkg_path="$first_match"
+                    new_notes="corrected via flox search (lib prefix): $pkg_path -> $first_match"
+                    was_corrected=1
+                    resolved=1
+                    log_verbose "CORRECTED (lib prefix): $pkg_path -> $first_match"
+                    n_corrected=$((n_corrected + 1))
+                fi
+            fi
+
+            # Strategy 4: strip trailing version numbers
+            if [[ "$resolved" -eq 0 ]]; then
                 local stripped
                 stripped=$(echo "$pkg_path" | sed -E 's/[0-9]+$//')
                 if [[ "$stripped" != "$pkg_path" ]]; then
@@ -77,17 +105,66 @@ validate_ir() {
                     if [[ -n "$alt_result" ]]; then
                         local first_match
                         first_match=$(echo "$alt_result" | head -1)
-                        new_confidence="LOW"
+                        new_confidence="EXACT"
                         new_pkg_path="$first_match"
-                        new_notes="flox search (stripped version) suggests: $first_match (original: $pkg_path)"
-                        log_verbose "VALIDATED (stripped): $pkg_path -> $first_match"
+                        new_notes="corrected via flox search (stripped version): $pkg_path -> $first_match"
+                        was_corrected=1
+                        resolved=1
+                        log_verbose "CORRECTED (stripped version): $pkg_path -> $first_match"
+                        n_corrected=$((n_corrected + 1))
                     fi
                 fi
             fi
 
-            if [[ "$new_confidence" == "$confidence" ]]; then
+            # Strategy 5: extract original distro name from notes and try transforms
+            if [[ "$resolved" -eq 0 && "$notes" == *"heuristic:"* ]]; then
+                local original=""
+                # Notes format: "heuristic: stripped -dev/lib prefix from libarpack2-dev"
+                original=$(echo "$notes" | sed -E 's/.*from ([^ ]+)$/\1/')
+                if [[ -n "$original" && "$original" != "$notes" ]]; then
+                    # Try: strip -dev only (keep lib)
+                    local try1="${original%-dev}"
+                    if [[ "$try1" != "$original" && "$try1" != "$pkg_path" ]]; then
+                        alt_result=$(_flox_search_quiet "$try1")
+                        if [[ -n "$alt_result" ]]; then
+                            local first_match
+                            first_match=$(echo "$alt_result" | head -1)
+                            new_confidence="EXACT"
+                            new_pkg_path="$first_match"
+                            new_notes="corrected via flox search (original name): $original -> $first_match"
+                            was_corrected=1
+                            resolved=1
+                            log_verbose "CORRECTED (original): $original -> $first_match"
+                            n_corrected=$((n_corrected + 1))
+                        fi
+                    fi
+
+                    # Try: strip -dev, strip lib, strip trailing digits
+                    if [[ "$resolved" -eq 0 ]]; then
+                        local try2="${try1#lib}"
+                        try2=$(echo "$try2" | sed -E 's/[0-9]+$//')
+                        if [[ -n "$try2" && "$try2" != "$pkg_path" && "$try2" != "$try1" ]]; then
+                            alt_result=$(_flox_search_quiet "$try2")
+                            if [[ -n "$alt_result" ]]; then
+                                local first_match
+                                first_match=$(echo "$alt_result" | head -1)
+                                new_confidence="EXACT"
+                                new_pkg_path="$first_match"
+                                new_notes="corrected via flox search (derived from $original): $first_match"
+                                was_corrected=1
+                                resolved=1
+                                log_verbose "CORRECTED (derived): $original -> $first_match"
+                                n_corrected=$((n_corrected + 1))
+                            fi
+                        fi
+                    fi
+                fi
+            fi
+
+            if [[ "$resolved" -eq 0 ]]; then
                 new_notes="flox search found no match for: $pkg_path"
                 log_verbose "NOT FOUND: $pkg_path"
+                n_unresolved=$((n_unresolved + 1))
             fi
         fi
 
@@ -113,9 +190,12 @@ validate_ir() {
     # Replace original IR
     cp "$updated_ir" "$ir_file"
 
-    local validated_count
-    validated_count=$(grep -c "${IR_DELIM}EXACT${IR_DELIM}" "$validated" 2>/dev/null || echo 0)
-    log_info "Validation complete: $validated_count/$count confirmed"
+    # Summary
+    local parts=""
+    [[ "$n_confirmed" -gt 0 ]] && parts="${n_confirmed} confirmed"
+    [[ "$n_corrected" -gt 0 ]] && parts="${parts:+$parts, }${n_corrected} corrected"
+    [[ "$n_unresolved" -gt 0 ]] && parts="${parts:+$parts, }${n_unresolved} unresolved"
+    log_info "Validation complete: ${parts:-no changes}"
 }
 
 _flox_search_quiet() {
