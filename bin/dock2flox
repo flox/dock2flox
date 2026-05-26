@@ -215,6 +215,7 @@ main() {
     # Emit TOML
     if [[ "$dry_run" -eq 1 ]]; then
         emit_toml "$ir_file"
+        _print_summary "$ir_file"
     else
         local output_file="$output_dir/manifest.toml"
         local tmp_manifest
@@ -269,7 +270,7 @@ _grep_count() {
 _print_summary() {
     local ir_file="$1"
 
-    local n_install n_var n_hook n_service n_skip n_unmapped
+    local n_install n_var n_hook n_service n_skip n_unmapped n_non_exact
     n_install=$(_grep_count "^INSTALL${IR_DELIM}" "$ir_file")
     n_var=$(_grep_count "^VAR${IR_DELIM}" "$ir_file")
     n_hook=$(_grep_count "^HOOK${IR_DELIM}" "$ir_file")
@@ -277,9 +278,17 @@ _print_summary() {
     n_skip=$(_grep_count "^SKIP${IR_DELIM}" "$ir_file")
     n_unmapped=$(_grep_count 'UNMAPPED' "$ir_file")
 
+    # Count packages that passed heuristic mapping but aren't confirmed
+    local n_exact
+    n_exact=$(_grep_count "${IR_DELIM}EXACT${IR_DELIM}" "$ir_file")
+    n_non_exact=$((n_install - n_exact))
+
     log_info "Summary: ${n_install} packages, ${n_var} vars, ${n_hook} hook lines, ${n_service} services, ${n_skip} skipped"
     if [[ "$n_unmapped" -gt 0 ]]; then
         log_warn "${n_unmapped} package(s) could not be mapped — search for UNMAPPED in output"
+    fi
+    if [[ "$n_non_exact" -gt 0 ]]; then
+        log_warn "${n_non_exact} package(s) mapped heuristically — run with --validate to verify against the Flox catalog"
     fi
 }
 
