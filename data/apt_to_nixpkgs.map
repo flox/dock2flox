@@ -132,17 +132,138 @@ libuv1-dev	libuv
 # System libraries
 libc6-dev	glibc
 linux-headers-generic	linuxHeaders
+libsystemd-dev	systemd
+
+# Network tools
+iproute2	iproute2
+iputils-ping	iputils
+net-tools	nettools
+dnsutils	dnsutils
+tcpdump	tcpdump
+nmap	nmap
+traceroute	traceroute
+telnet	telnet
+netcat	netcat-gnu
+ncat	nmap
+iptables	iptables
+bridge-utils	bridge-utils
+
+# Diagnostics and system tools
+procps	procps
+sysstat	sysstat
+strace	strace
+ltrace	ltrace
+lsof	lsof
+gdb	gdb
+valgrind	valgrind
+perf-tools-unstable	linuxPackages.perf
+cron	cron
+logrotate	logrotate
+supervisor	python313Packages.supervisor
+
+# Version control
+mercurial	mercurial
+subversion	subversion
+bzr	breezy
+
+# Build tools (additional)
+meson	meson
+scons	scons
+nasm	nasm
+yasm	yasm
+gettext	gettext
+texinfo	texinfo
+doxygen	doxygen
+swig	swig
+ccache	ccache
+distcc	distcc
+
+# Image libraries
+libwebp-dev	libwebp
+libtiff-dev	libtiff
+libtiff5-dev	libtiff
+libgif-dev	giflib
+libopenjp2-7-dev	openjpeg
+libheif-dev	libheif
+
+# Math / science libraries
+libopenblas-dev	openblas
+liblapack-dev	lapack
+libhdf5-dev	hdf5
+libgsl-dev	gsl
+libfftw3-dev	fftw
+
+# Data / messaging libraries
+librdkafka-dev	rdkafka
+libzmq3-dev	zeromq
+librabbitmq-dev	rabbitmq-c
+libsnappy-dev	snappy
+liblz4-dev	lz4
+
+# GLib / GObject / GTK ecosystem
+libglib2.0-dev	glib
+libgobject-introspection-dev	gobject-introspection
+libgirepository1.0-dev	gobject-introspection
+libgtk-3-dev	gtk3
+libgtk-4-dev	gtk4
+
+# Networking libraries
+libssh-dev	libssh
+libssh2-1-dev	libssh2
+libgit2-dev	libgit2
+libevent-dev	libevent
+libnghttp2-dev	nghttp2
+libldap2-dev	openldap
+libsasl2-dev	cyrus_sasl
+
+# Multimedia
+libavcodec-dev	ffmpeg
+libavformat-dev	ffmpeg
+libavutil-dev	ffmpeg
+libswscale-dev	ffmpeg
+libv4l-dev	v4l-utils
+libasound2-dev	alsa-lib
+libpulse-dev	libpulseaudio
+libopus-dev	libopus
+libvorbis-dev	libvorbis
+libflac-dev	flac
+
+# Database libraries (additional)
+libmongoc-dev	mongoc
+libbson-dev	mongoc
+libcassandra-dev	cassandra-cpp-driver
+
+# Serialization / IPC
+libflatbuffers-dev	flatbuffers
+libmsgpack-dev	msgpack
+libcapnp-dev	capnproto
+libthrift-dev	thrift
 
 # Infrastructure / cloud CLIs
 awscli	awscli2
+aws-cli	awscli2
 google-cloud-sdk	google-cloud-sdk
+google-cloud-cli	google-cloud-sdk
 kubectl	kubectl
 terraform	terraform
 helm	kubernetes-helm
 docker-ce-cli	docker-client
+docker-cli	docker-client
+ansible	ansible
+vault	vault
+consul	consul
+packer	packer
+pulumi	pulumi
 
 # Time/locale
 tzdata	tzdata
+locales	glibcLocales
+
+# Editors / pagers (vim and less already in Core utilities above)
+vim-tiny	vim
+neovim	neovim
+emacs	emacs
+most	most
 
 # Misc tools
 graphviz	graphviz
@@ -151,3 +272,23 @@ imagemagick	imagemagick
 ghostscript	ghostscript
 pandoc	pandoc
 shellcheck	shellcheck
+tmux	tmux
+screen	screen
+expect	expect
+dialog	dialog
+bc	bc
+dc	bc
+dos2unix	dos2unix
+entr	entr
+parallel	parallel
+pv	pv
+pigz	pigz
+pbzip2	pbzip2
+pixz	pixz
+ripgrep	ripgrep
+fd-find	fd
+bat	bat
+exa	eza
+fzf	fzf
+direnv	direnv
+watchman	watchman
