@@ -309,8 +309,20 @@ php-date	php
 
 # Container / init tools
 tini	tini
+catatonit	catatonit
 gosu	_skip_	container-specific privilege tool
 patchelf	patchelf
+
+# Docker ecosystem
+docker-ce	docker
+docker-ce-cli	docker-client
+docker-buildx-plugin	docker-buildx
+containerd.io	containerd
+docker-compose-plugin	docker-compose
+
+# System utilities (apt-specific)
+apt-utils	_skip_	apt internal tooling
+systemd-standalone-sysusers	_skip_	container-specific systemd stub
 
 # Mastodon / Ruby app runtime libs
 libexpat1	expat

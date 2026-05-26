@@ -248,7 +248,13 @@ chromium-chromedriver	chromedriver
 
 # Container / init tools
 tini	tini
+catatonit	catatonit
 patchelf	patchelf
+
+# Alpine-specific packages
+alpine-release	_skip_	Alpine metadata package
+shadow	shadow	useradd/groupadd on Alpine
+procps-ng	procps	Alpine name for procps
 
 # Serialization
 flatbuffers-dev	flatbuffers
