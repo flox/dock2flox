@@ -62,7 +62,7 @@ The output is a complete Flox `manifest.toml` with:
 - **`[install]`** — Every package your Dockerfile installs, mapped to Flox catalog names
 - **`[vars]`** — Environment variables from ENV instructions
 - **`[hook]`** — Activation logic: cache directory setup, venv creation, dependency installation
-- **`[services]`** — Backing services (postgres, redis) if you choose `--services=flox`
+- **`[services]`** — Backing services (postgres, redis) if you choose `--services flox`
 - **`REVIEW[...]` comments** — Anything dock2flox couldn't map with certainty, flagged for you to check
 
 ## What It Translates
@@ -98,13 +98,13 @@ When dock2flox encounters services like postgres or redis in a Compose file, it 
 bin/dock2flox docker-compose.yml
 
 # Keep services as external containers (just emit connection vars)
-bin/dock2flox --services=container docker-compose.yml
+bin/dock2flox --services container docker-compose.yml
 
 # Convert to Flox-managed services
-bin/dock2flox --services=flox docker-compose.yml
+bin/dock2flox --services flox docker-compose.yml
 ```
 
-With `--services=container`, you get connection variables (`PGHOST`, `PGPORT`, `REDIS_HOST`, etc.) so your code finds the existing containers. With `--services=flox`, you get actual `[services]` definitions that Flox starts for you.
+With `--services container`, you get connection variables (`PGHOST`, `PGPORT`, `REDIS_HOST`, etc.) so your code finds the existing containers. With `--services flox`, you get actual `[services]` definitions that Flox starts for you.
 
 ## Safety Model
 
@@ -145,6 +145,29 @@ mkdir -p "$UV_CACHE_DIR" "$PIP_CACHE_DIR" "$npm_config_cache"
 '''
 ```
 
+## Python Package Placement (`--pip`)
+
+Not every pip package belongs in `[install]`. dock2flox applies a **contract-scope calculus** — and gives you control over it:
+
+```bash
+bin/dock2flox --pip project     # (default) CLI tools + native extensions in [install]
+bin/dock2flox --pip flox        # everything mapped goes into [install]
+bin/dock2flox --pip cuda        # like project + ML packages from flox-cuda catalog
+bin/dock2flox --pip requirements  # nothing in [install], all via uv hook
+```
+
+**The default calculus:** In `project` mode, dock2flox places packages in Flox `[install]` when their reproducibility depends on relationships that cross the Python/system boundary (CLI tools invoked from shell, native extensions linking to system libraries), and delegates everything else to the Python project graph (pyproject.toml / uv.lock). This is an opinionated default — use `--pip flox`, `--pip cuda`, or `--pip requirements` to override with your team's preferred boundary.
+
+| `pip install ...` | `--pip=project` | `--pip=flox` | `--pip=cuda` | `--pip=requirements` |
+|---|---|---|---|---|
+| `ruff` | [install] (CLI tool) | [install] | [install] | uv hook |
+| `psycopg2` | [install] (native ext) | [install] | [install] | uv hook |
+| `flask` | uv hook (framework) | [install] | uv hook | uv hook |
+| `torch` | uv hook | [install] | [install] flox-cuda/* | uv hook |
+| `torchvision` | uv hook | [install] | [install] flox-cuda/* (dedup: torch omitted) | uv hook |
+
+**CUDA dedup:** `flox-cuda/python3Packages.torchvision` includes torch transitively, so dock2flox omits a standalone torch entry when torchvision is present. Same for torchaudio. CUDA packages automatically get `systems = ["aarch64-linux", "x86_64-linux"]`.
+
 ## CLI Reference
 
 ```
@@ -157,11 +180,13 @@ OPTIONS:
     -f, --force             Overwrite existing manifest without confirmation
         --validate          Verify package mappings via flox search
         --services MODE     Service handling: flox | container | prompt
+        --pip MODE          Python packages: project | flox | cuda | requirements
         --verbose           Show mapping decisions on stderr
     -h, --help              Show usage
 
 ENVIRONMENT VARIABLES:
     DOCK2FLOX_SERVICES      Override service mode (flox|container|prompt)
+    DOCK2FLOX_PIP           Override pip mode (project|flox|cuda|requirements)
     DOCK2FLOX_VERBOSE       Set to 1 for verbose output
     DOCK2FLOX_RUN_TIMEOUT   Interpreter timeout per RUN (default: 5s)
     DOCK2FLOX_RUN_ARCH      Override architecture model (default: x86_64)
@@ -198,6 +223,7 @@ data/
   base_images.map              Docker Hub images → packages
   known_installers.map         URL patterns (nodejs.org, rustup.rs, etc.)
   cache_hooks.map              Ecosystem → cache env vars
+  cuda_packages.map            PyPI ML packages → flox-cuda paths + dedup rules
   package_conflicts.map        Known package file conflicts
   language_ecosystems.map      Language toolchain mappings
   corepack_tools.map           corepack enable → Flox packages
