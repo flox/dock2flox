@@ -1850,58 +1850,24 @@ _extract_pip_install_argv() {
 
 _extract_npm_global() {
     local cmd="$1" ir_file="$2" line_num="$3"
-    local map_file="$DOCK2FLOX_DATA/npm_to_nixpkgs.map"
 
+    # npm install -g packages stay as hook commands — they're managed by
+    # the Node.js ecosystem, not the Flox catalog.
     # Extract package names after -g flag
     local pkg_list
     pkg_list=$(echo "$cmd" | sed -E 's/.*install\s+-g\s+//' | sed -E 's/--[a-z-]+(=[^ ]+)?//g')
 
-    local -a unmapped_pkgs=()
-    local pkg nixpkgs_path
-
+    local -a pkgs=()
+    local pkg
     for pkg in $pkg_list; do
         [[ -z "$pkg" ]] && continue
         [[ "$pkg" == -* ]] && continue
-
-        # Strip version specifier (@version) — handle scoped packages (@scope/name@ver)
-        if [[ "$pkg" == @*/* ]]; then
-            # Scoped package: @scope/name@version -> @scope/name
-            pkg=$(echo "$pkg" | sed -E 's/(@[^/]+\/[^@]+)@.*/\1/')
-        else
-            # Regular package: name@version -> name
-            pkg="${pkg%%@*}"
-        fi
-        [[ -z "$pkg" ]] && continue
-
-        # Look up in npm_to_nixpkgs.map
-        nixpkgs_path=""
-        if [[ -f "$map_file" ]]; then
-            nixpkgs_path=$(awk -F'\t' -v p="$pkg" '$1 == p && !found {print $2; found=1}' "$map_file")
-        fi
-
-        if [[ "$nixpkgs_path" == "_skip_" ]]; then
-            log_verbose "npm: skipping $pkg"
-            continue
-        elif [[ -n "$nixpkgs_path" ]]; then
-            local install_id
-            if [[ "$nixpkgs_path" == *.* ]]; then
-                install_id="${nixpkgs_path##*.}"
-            else
-                install_id="$nixpkgs_path"
-            fi
-            ir_install "$ir_file" "$install_id" "$nixpkgs_path" "" "" "EXACT" "$line_num" "from npm install -g"
-            log_verbose "npm: $pkg -> $nixpkgs_path (EXACT)"
-        else
-            unmapped_pkgs+=("$pkg")
-            log_verbose "npm: $pkg -> unmapped"
-        fi
+        pkgs+=("$pkg")
     done
 
-    # Emit remaining as hook
-    if [[ ${#unmapped_pkgs[@]} -gt 0 ]]; then
-        local remaining="${unmapped_pkgs[*]}"
-        ir_hook "$ir_file" "100" "# npm globals not in Flox catalog:" "$line_num"
-        ir_hook "$ir_file" "101" "# npm install -g $remaining" "$line_num"
+    if [[ ${#pkgs[@]} -gt 0 ]]; then
+        local remaining="${pkgs[*]}"
+        ir_hook "$ir_file" "$((1000 + line_num * 10))" "npm install -g $remaining" "$line_num"
     fi
 }
 

@@ -42,8 +42,7 @@ def shell_safety() -> None:
 
 def gaps() -> None:
     print("Brief gap closure tests:")
-    t.smoke("conflict: corepack priority", "Dockerfile.gaps", r'corepack\.priority = 4')
-    t.smoke("conflict: nodejs lower priority", "Dockerfile.gaps", r'nodejs\.priority = 5')
+    t.smoke("npm global stays as hook", "Dockerfile.gaps", r'npm install -g corepack')
     t.smoke("POETRY_HOME becomes FLOX_ENV", "Dockerfile.gaps", r'export POETRY_HOME="\$FLOX_ENV"')
     t.absent("POETRY_HOME not literal /usr/local", "Dockerfile.gaps", r'POETRY_HOME = "/usr/local"')
     t.smoke("corepack enable yarn -> yarn-berry", "Dockerfile.gaps", r'yarn-berry\.pkg-path = "yarn-berry"')

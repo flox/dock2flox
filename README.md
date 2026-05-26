@@ -16,7 +16,7 @@ RUN apt-get install curl git libpq     curl, git, postgresql in [install]
 ENV APP_ENV=development                APP_ENV in [vars]
 RUN pip install poetry pipenv uv       poetry, pipenv, uv in [install]
 RUN curl ... nodejs.org ...            nodejs in [install]
-RUN npm install -g corepack            corepack in [install]
+RUN corepack enable yarn               yarn-berry in [install]
 ```
 
 It doesn't just grep for package names. It runs your RUN commands through a **stubbed Bash interpreter** that expands variables, walks loops, and evaluates conditionals — without touching your host system:
@@ -73,7 +73,7 @@ The output is a complete Flox `manifest.toml` with:
 | `RUN apt-get install -y curl git` | `curl.pkg-path = "curl"` etc. |
 | `RUN pip install uv pipenv` | `uv.pkg-path = "uv"` (native Flox package) |
 | `RUN curl ... nodejs.org ...` (20 lines) | `nodejs.pkg-path = "nodejs"` (1 line) |
-| `RUN npm install -g typescript` | `typescript.pkg-path = "typescript"` |
+| `RUN npm install -g typescript` | Hook: `npm install -g typescript` |
 | `RUN corepack enable yarn` | `yarn-berry.pkg-path = "yarn-berry"` |
 | `ENV DATABASE_URL=...` | `DATABASE_URL = "..."` in [vars] |
 | `RUN pip install -r requirements.txt` | Hook: `uv pip install -r requirements.txt` |
@@ -211,7 +211,7 @@ lib/
   shell_safety_scan.py         Additional safety scanner
   parser_compose.sh            Compose parser (bash fallback)
   parser_compose.py            Compose parser (PyYAML, structured)
-  mapper_packages.sh           apt/apk/pip/npm → nixpkgs translation
+  mapper_packages.sh           apt/apk/pip → nixpkgs translation
   mapper_base_images.sh        FROM image:tag → package mapping
   emitter_toml.sh              IR → manifest.toml generation
   validator.sh                 flox search validation
@@ -219,7 +219,6 @@ data/
   apt_to_nixpkgs.map           Debian/Ubuntu package mappings
   apk_to_nixpkgs.map           Alpine package mappings
   pip_to_nixpkgs.map           PyPI → Flox catalog mappings
-  npm_to_nixpkgs.map           npm globals → Flox catalog mappings
   base_images.map              Docker Hub images → packages
   known_installers.map         URL patterns (nodejs.org, rustup.rs, etc.)
   cache_hooks.map              Ecosystem → cache env vars

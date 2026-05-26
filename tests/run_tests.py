@@ -462,8 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     slow_timeout_fixture("dynamic timeout fixture is bounded", "Dockerfile.dynamic-timeout")
 
     print("\nGap closure tests:")
-    smoke("conflict: corepack priority", "Dockerfile.gaps", r'corepack\.priority = 4')
-    smoke("conflict: nodejs lower priority", "Dockerfile.gaps", r'nodejs\.priority = 5')
+    smoke("npm global stays as hook", "Dockerfile.gaps", r'npm install -g corepack')
     smoke("POETRY_HOME becomes FLOX_ENV", "Dockerfile.gaps", r'export POETRY_HOME="\$FLOX_ENV"')
     absent("POETRY_HOME not literal /usr/local", "Dockerfile.gaps", r'POETRY_HOME = "/usr/local"')
     smoke("corepack enable yarn -> yarn-berry", "Dockerfile.gaps", r'yarn-berry\.pkg-path = "yarn-berry"')
