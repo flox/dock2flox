@@ -107,44 +107,11 @@ _base_image_pkg_path() {
     local version="$2"
     local image="$3"
 
-    # For some images, version modifies the pkg-path
-    case "$image" in
-        python)
-            if [[ -n "$version" ]]; then
-                # python 3.11 -> python311, python 3.13 -> python313
-                local major minor
-                major="${version%%.*}"
-                minor="${version#*.}"
-                minor="${minor%%.*}"  # handle 3.11.4 -> 11
-                printf 'python%s%s' "$major" "$minor"
-            else
-                printf '%s' "$pkg_path"
-            fi
-            ;;
-        node)
-            if [[ -n "$version" ]]; then
-                printf 'nodejs_%s' "$version"
-            else
-                printf '%s' "$pkg_path"
-            fi
-            ;;
-        golang)
-            if [[ -n "$version" ]]; then
-                # go 1.22 -> go_1_22 (or just go with version pin)
-                printf '%s' "$pkg_path"
-            else
-                printf '%s' "$pkg_path"
-            fi
-            ;;
-        openjdk|eclipse-temurin|amazoncorretto)
-            if [[ -n "$version" ]]; then
-                printf 'jdk%s' "$version"
-            else
-                printf '%s' "$pkg_path"
-            fi
-            ;;
-        *)
-            printf '%s' "$pkg_path"
-            ;;
-    esac
+    # Always return the base package name — let the version constraint
+    # handle version matching. Flox's resolver finds historical versions
+    # across the catalog (e.g., python3 with version="3.12" resolves correctly).
+    # Do NOT mangle names like python313 or nodejs_20 — these create redundant
+    # version conflicts when combined with a version constraint.
+    # All images: return the base package name as-is
+    printf '%s' "$pkg_path"
 }

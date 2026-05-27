@@ -405,7 +405,7 @@ def main(argv: list[str] | None = None) -> int:
     smoke("apt curl -> curl", "Dockerfile.python-api", r'curl\.pkg-path = "curl"')
     smoke("apt libpq-dev -> postgresql", "Dockerfile.python-api", r'postgresql\.pkg-path = "postgresql"')
     smoke("apt build-essential -> gcc", "Dockerfile.python-api", r'gcc\.pkg-path = "gcc"')
-    smoke("FROM python:3.11 -> python311", "Dockerfile.python-api", r'python311')
+    smoke("FROM python:3.11 -> python3 with version", "Dockerfile.python-api", r'python3\.version = "3\.11"')
     smoke("apk ca-certificates -> cacert", "Dockerfile.multistage", r'cacert\.pkg-path = "cacert"')
     smoke("ENV APP_PORT -> [vars]", "Dockerfile.multistage", r'APP_PORT = "8080"')
 
