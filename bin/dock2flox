@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Resolve script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCK2FLOX_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DOCK2FLOX_ROOT="${DOCK2FLOX_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 # Source libraries
 source "$DOCK2FLOX_ROOT/lib/core.sh"
