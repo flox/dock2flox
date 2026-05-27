@@ -43,6 +43,21 @@
       "colima": {
         "command": "colima start --foreground"
       }
+    },
+    "build": {
+      "dock2flox": {
+        "command": "  mkdir -p \"$out/bin\" \"$out/share/dock2flox\"\n\n  # Copy the tool tree into share/dock2flox/\n  cp -r bin lib data \"$out/share/dock2flox/\"\n  chmod +x \"$out/share/dock2flox/bin/dock2flox\"\n\n  # Create wrapper at $out/bin/dock2flox\n  cat > \"$out/bin/dock2flox\" << 'WRAPPER'\n#!/usr/bin/env bash\nREAL_DIR=\"$(cd \"$(dirname \"$(readlink -f \"$0\")\")\" && pwd)\"\nexport DOCK2FLOX_ROOT=\"$(cd \"$REAL_DIR/../share/dock2flox\" && pwd)\"\nexec bash \"$DOCK2FLOX_ROOT/bin/dock2flox\" \"$@\"\nWRAPPER\n  chmod +x \"$out/bin/dock2flox\"\n",
+        "runtime-packages": [
+          "bash",
+          "coreutils",
+          "gnugrep",
+          "gnused",
+          "gawk",
+          "python3",
+          "pyyaml"
+        ],
+        "description": "Convert Dockerfiles, Compose files, and devcontainer configs to Flox environments"
+      }
     }
   },
   "packages": [
@@ -1199,6 +1214,21 @@
           "x86_64-darwin",
           "x86_64-linux"
         ]
+      },
+      "build": {
+        "dock2flox": {
+          "command": "  mkdir -p \"$out/bin\" \"$out/share/dock2flox\"\n\n  # Copy the tool tree into share/dock2flox/\n  cp -r bin lib data \"$out/share/dock2flox/\"\n  chmod +x \"$out/share/dock2flox/bin/dock2flox\"\n\n  # Create wrapper at $out/bin/dock2flox\n  cat > \"$out/bin/dock2flox\" << 'WRAPPER'\n#!/usr/bin/env bash\nREAL_DIR=\"$(cd \"$(dirname \"$(readlink -f \"$0\")\")\" && pwd)\"\nexport DOCK2FLOX_ROOT=\"$(cd \"$REAL_DIR/../share/dock2flox\" && pwd)\"\nexec bash \"$DOCK2FLOX_ROOT/bin/dock2flox\" \"$@\"\nWRAPPER\n  chmod +x \"$out/bin/dock2flox\"\n",
+          "runtime-packages": [
+            "bash",
+            "coreutils",
+            "gnugrep",
+            "gnused",
+            "gawk",
+            "python3",
+            "pyyaml"
+          ],
+          "description": "Convert Dockerfiles, Compose files, and devcontainer configs to Flox environments"
+        }
       },
       "include": {
         "environments": [
