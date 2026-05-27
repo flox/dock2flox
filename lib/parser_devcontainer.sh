@@ -163,9 +163,14 @@ _reprocess_lifecycle_hooks() {
             while IFS="$IR_DELIM" read -r rec_type rec_order rec_cmd rec_line; do
                 rec_cmd=$(_ir_decode "$rec_cmd")
                 if [[ "$rec_type" == "HOOK" && "$rec_cmd" == "# RUN: "* ]]; then
-                    # Strip "# RUN: " prefix, emit as live hook
-                    local live_cmd="${rec_cmd#\# RUN: }"
-                    ir_hook "$ir_file" "$rec_order" "$live_cmd" "$rec_line"
+                    if [[ "${DOCK2FLOX_LIVE_HOOKS:-0}" == "1" ]]; then
+                        # --live-hooks: strip "# RUN: " prefix, keep as live hook
+                        local live_cmd="${rec_cmd#\# RUN: }"
+                        ir_hook "$ir_file" "$rec_order" "$live_cmd" "$rec_line"
+                    else
+                        # Conservative default: keep as commented-out
+                        printf '%s\n' "$rec_type${IR_DELIM}$rec_order${IR_DELIM}$(_ir_encode "$rec_cmd")${IR_DELIM}$rec_line" >> "$ir_file"
+                    fi
                 else
                     # Pass through as-is (INSTALL, HOOK, REVIEW, etc.)
                     printf '%s\n' "$rec_type${IR_DELIM}$rec_order${IR_DELIM}$(_ir_encode "$rec_cmd")${IR_DELIM}$rec_line" >> "$ir_file"

@@ -48,12 +48,14 @@ OPTIONS:
                             (default: prompt if TTY, container otherwise)
         --pip MODE          Python package handling: project | flox | cuda | requirements
                             (default: project)
+        --live-hooks        Keep unrecognized devcontainer lifecycle commands as executable hooks
         --verbose           Show mapping decisions on stderr
     -h, --help              Show this help
 
 ENVIRONMENT VARIABLES:
     DOCK2FLOX_SERVICES      Override service mode (flox|container|prompt)
     DOCK2FLOX_PIP           Override pip mode (project|flox|cuda|requirements)
+    DOCK2FLOX_LIVE_HOOKS    Set to 1 for live hooks (default: 0, commented out)
     DOCK2FLOX_VERBOSE       Set to 1 for verbose output
 
 EXAMPLES:
@@ -78,6 +80,7 @@ main() {
     local pip_mode=""
     local apply=0
     local apply_dir=""
+    local live_hooks=0
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -105,6 +108,10 @@ main() {
             -d|--dir)
                 apply_dir="$2"
                 shift 2
+                ;;
+            --live-hooks)
+                live_hooks=1
+                shift
                 ;;
             --validate)
                 validate=1
@@ -174,6 +181,11 @@ main() {
         pip_mode="project"
     fi
     export DOCK2FLOX_PIP_MODE="$pip_mode"
+
+    # Live hooks mode
+    if [[ -z "${DOCK2FLOX_LIVE_HOOKS:-}" ]]; then
+        export DOCK2FLOX_LIVE_HOOKS="$live_hooks"
+    fi
 
     # Auto-detect inputs if none specified
     if [[ ${#input_files[@]} -eq 0 ]]; then
