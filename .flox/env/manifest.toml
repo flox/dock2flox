@@ -14,26 +14,6 @@ environments = [
     { remote = "flox/colima" },
 ]
 
-[build.dock2flox]
-description = "Convert Dockerfiles, Compose files, and devcontainer configs to Flox environments"
-command = '''
-  mkdir -p "$out/bin" "$out/share/dock2flox"
-
-  # Copy the tool tree into share/dock2flox/
-  cp -r bin lib data "$out/share/dock2flox/"
-  chmod +x "$out/share/dock2flox/bin/dock2flox"
-
-  # Create wrapper at $out/bin/dock2flox
-  cat > "$out/bin/dock2flox" << 'WRAPPER'
-#!/usr/bin/env bash
-REAL_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-export DOCK2FLOX_ROOT="$(cd "$REAL_DIR/../share/dock2flox" && pwd)"
-exec bash "$DOCK2FLOX_ROOT/bin/dock2flox" "$@"
-WRAPPER
-  chmod +x "$out/bin/dock2flox"
-'''
-runtime-packages = ["bash", "coreutils", "gnugrep", "gnused", "gawk", "python3", "pyyaml"]
-
 [options]
 systems = [
   "aarch64-darwin",
