@@ -6,8 +6,7 @@ schema-version = "1.11.0"
 [install]
 cacert.pkg-path = "cacert"
 curl.pkg-path = "curl"
-nodejs.pkg-path = "nodejs"
-nodejs.version = "20"
+nodejs.pkg-path = "nodejs_20"
 
 [vars]
 DOCK2FLOX_CONTAINER_CMD = "node dist/server.js"

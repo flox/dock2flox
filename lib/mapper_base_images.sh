@@ -78,9 +78,11 @@ map_base_image() {
         group_value="$pkg_group"
     fi
 
-    # Format version for Flox (semver-ish)
+    # Only emit a version constraint when the pkg-path is the base name.
+    # When the version is encoded in the name (nodejs_20, jdk21), the name
+    # IS the version pin — adding a constraint is redundant and can fail.
     local flox_version=""
-    if [[ -n "$version" ]]; then
+    if [[ -n "$version" && "$resolved_pkg_path" == "$pkg_path" ]]; then
         flox_version="$version"
     fi
 
@@ -112,6 +114,25 @@ _base_image_pkg_path() {
     # across the catalog (e.g., python3 with version="3.12" resolves correctly).
     # Do NOT mangle names like python313 or nodejs_20 — these create redundant
     # version conflicts when combined with a version constraint.
-    # All images: return the base package name as-is
-    printf '%s' "$pkg_path"
+    # Ecosystems with actively maintained version-line packages use versioned names.
+    # Everything else uses the base name + version constraint.
+    case "$image" in
+        node)
+            if [[ -n "$version" ]]; then
+                printf 'nodejs_%s' "$version"
+            else
+                printf '%s' "$pkg_path"
+            fi
+            ;;
+        openjdk|eclipse-temurin|amazoncorretto)
+            if [[ -n "$version" ]]; then
+                printf 'jdk%s' "$version"
+            else
+                printf '%s' "$pkg_path"
+            fi
+            ;;
+        *)
+            printf '%s' "$pkg_path"
+            ;;
+    esac
 }
