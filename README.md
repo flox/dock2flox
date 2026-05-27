@@ -11,7 +11,7 @@ dock2flox reads your Dockerfile and figures out what it's actually doing:
 ```
 Dockerfile                          →  manifest.toml
 ─────────────────────────────────      ─────────────────────────────────
-FROM python:3.11-slim                  python311 in [install]
+FROM python:3.11-slim                  python3 version 3.11 in [install]
 RUN apt-get install curl git libpq     curl, git, postgresql in [install]
 ENV APP_ENV=development                APP_ENV in [vars]
 RUN pip install poetry pipenv uv       poetry, pipenv, uv in [install]
@@ -69,7 +69,7 @@ The output is a complete Flox `manifest.toml` with:
 
 | Your Dockerfile | Becomes |
 |---|---|
-| `FROM python:3.11` | `python3.pkg-path = "python311"` with version |
+| `FROM python:3.11` | `python3.pkg-path = "python3"` with `version = "3.11"` |
 | `RUN apt-get install -y curl git` | `curl.pkg-path = "curl"` etc. |
 | `RUN pip install uv pipenv` | `uv.pkg-path = "uv"` (native Flox package) |
 | `RUN curl ... nodejs.org ...` (20 lines) | `nodejs.pkg-path = "nodejs"` (1 line) |
