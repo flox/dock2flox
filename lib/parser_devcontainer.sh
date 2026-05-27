@@ -22,6 +22,9 @@ parse_devcontainer() {
         if python3 "$DOCK2FLOX_ROOT/lib/parser_devcontainer.py" "$devcontainer_file" > "$parsed_ir"; then
             cat "$parsed_ir" >> "$ir_file"
             parsed=1
+            # Re-process lifecycle commands (order 060-090) through the RUN interpreter
+            # to apply pip calculus, package detection, etc.
+            _reprocess_lifecycle_hooks "$ir_file"
         else
             log_warn "Devcontainer parser failed"
         fi
@@ -110,4 +113,69 @@ elif isinstance(b, dict): print(b.get('dockerfile', 'Dockerfile'))
             ir_var "$ir_file" "DOCK2FLOX_DEVCONTAINER_SERVICE" "$compose_service" "0"
         fi
     fi
+}
+
+_reprocess_lifecycle_hooks() {
+    local ir_file="$1"
+
+    # Check if _parse_run is available (requires parser_dockerfile.sh to be sourced)
+    if ! declare -f _parse_run > /dev/null 2>&1; then
+        return 0
+    fi
+
+    # Set up minimal scope for _parse_run
+    local -A arg_table=()
+    local -A env_table=()
+    local pkg_manager="apt"
+    local current_arch="x86_64"
+    local current_shell_kind="bash"
+    local current_shell_explicit=0
+
+    # Extract lifecycle HOOK records (orders 060-090)
+    local lifecycle_hooks
+    lifecycle_hooks=$({ grep "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | awk -F "$IR_DELIM" '$2 >= 60 && $2 <= 90')
+
+    [[ -z "$lifecycle_hooks" ]] && return 0
+
+    # Remove original lifecycle hooks from IR
+    local cleaned
+    cleaned=$(dock2flox_mktemp)
+    { grep -v "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || true; } > "$cleaned"
+    # Keep non-lifecycle hooks (orders outside 060-090)
+    { grep "^HOOK${IR_DELIM}" "$ir_file" 2>/dev/null || true; } | awk -F "$IR_DELIM" '$2 < 60 || $2 > 90' >> "$cleaned"
+    cp "$cleaned" "$ir_file"
+
+    # Re-process each lifecycle command through _parse_run
+    while IFS="$IR_DELIM" read -r _ order cmd line_num; do
+        cmd=$(_ir_decode "$cmd")
+        [[ -z "$cmd" ]] && continue
+
+        # Capture what _parse_run produces in a temp IR
+        local temp_ir
+        temp_ir=$(dock2flox_mktemp)
+        _parse_run "RUN $cmd" "$temp_ir" "${line_num:-0}"
+
+        # Merge _parse_run results, but convert "# RUN: ..." comments back to
+        # live hook commands — in devcontainer context, unrecognized commands
+        # are still valid lifecycle steps (e.g., "uv sync"), not dead code.
+        if [[ -s "$temp_ir" ]]; then
+            # Convert commented-out RUN hooks to live hooks
+            while IFS="$IR_DELIM" read -r rec_type rec_order rec_cmd rec_line; do
+                rec_cmd=$(_ir_decode "$rec_cmd")
+                if [[ "$rec_type" == "HOOK" && "$rec_cmd" == "# RUN: "* ]]; then
+                    # Strip "# RUN: " prefix, emit as live hook
+                    local live_cmd="${rec_cmd#\# RUN: }"
+                    ir_hook "$ir_file" "$rec_order" "$live_cmd" "$rec_line"
+                else
+                    # Pass through as-is (INSTALL, HOOK, REVIEW, etc.)
+                    printf '%s\n' "$rec_type${IR_DELIM}$rec_order${IR_DELIM}$(_ir_encode "$rec_cmd")${IR_DELIM}$rec_line" >> "$ir_file"
+                fi
+            done < "$temp_ir"
+            log_verbose "Lifecycle command reprocessed: $cmd"
+        else
+            # Empty result — keep original command as a live hook
+            ir_hook "$ir_file" "$order" "$cmd" "${line_num:-0}"
+            log_verbose "Lifecycle command preserved as hook: $cmd"
+        fi
+    done <<< "$lifecycle_hooks"
 }
