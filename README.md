@@ -2,7 +2,7 @@
 
 Convert your Dockerfiles and Docker Compose files into reproducible [Flox](https://flox.dev) environments.
 
-Instead of building throwaway container images just to get a development shell, dock2flox reads your existing Docker artifacts and produces a `manifest.toml` that gives every engineer the same tools, versions, and services — on any machine, without containers.
+dock2flox reads your existing Docker artifacts and produces a Flox `manifest.toml` that gives every engineer the same tools, versions, and services: on any machine, without containers.
 
 ## How It Works
 
