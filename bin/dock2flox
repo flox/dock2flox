@@ -38,8 +38,10 @@ USAGE:
 
 OPTIONS:
     -i, --input FILE        Explicit input file (repeatable)
-    -o, --output DIR        Output directory for manifest (default: ./)
     -n, --dry-run           Print manifest to stdout, do not write files
+        --apply             Apply manifest to Flox environment via flox edit (validated, atomic)
+    -d, --dir DIR           Target Flox environment directory (with --apply)
+    -o, --output DIR        Output directory for bare manifest file (default: ./)
     -f, --force             Overwrite existing manifest without confirmation
         --validate          Verify package mappings via flox search
         --services MODE     Service handling: flox | compose | container | prompt
@@ -55,8 +57,9 @@ ENVIRONMENT VARIABLES:
     DOCK2FLOX_VERBOSE       Set to 1 for verbose output
 
 EXAMPLES:
-    dock2flox                           # Auto-detect in current directory
-    dock2flox Dockerfile                # Convert specific Dockerfile
+    dock2flox --dry-run Dockerfile      # Preview the generated manifest
+    dock2flox --apply Dockerfile        # Apply to current Flox environment (requires flox init)
+    dock2flox --apply -d ./proj Dockerfile  # Apply to a specific Flox environment
     dock2flox --dry-run --validate .    # Preview with package validation
     dock2flox -o ./myproject Dockerfile docker-compose.yml
 
@@ -73,6 +76,8 @@ main() {
     local services_mode=""
     local opt_pip=""
     local pip_mode=""
+    local apply=0
+    local apply_dir=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -92,6 +97,14 @@ main() {
             -f|--force)
                 force=1
                 shift
+                ;;
+            --apply)
+                apply=1
+                shift
+                ;;
+            -d|--dir)
+                apply_dir="$2"
+                shift 2
                 ;;
             --validate)
                 validate=1
@@ -129,6 +142,16 @@ main() {
                 ;;
         esac
     done
+
+    # Validate flag combinations
+    if [[ "$apply" -eq 1 && "$dry_run" -eq 1 ]]; then
+        log_error "--apply and --dry-run are mutually exclusive"
+        return 1
+    fi
+    if [[ "$apply" -eq 1 && "$output_dir" != "." ]]; then
+        log_error "--apply and -o are mutually exclusive (--apply writes via flox edit)"
+        return 1
+    fi
 
     # Determine service mode
     if [[ -n "${DOCK2FLOX_SERVICES:-}" ]]; then
@@ -223,6 +246,28 @@ main() {
     # Emit TOML
     if [[ "$dry_run" -eq 1 ]]; then
         emit_toml "$ir_file"
+        _print_summary "$ir_file"
+    elif [[ "$apply" -eq 1 ]]; then
+        if ! command -v flox &>/dev/null; then
+            log_error "--apply requires flox in PATH"
+            return 1
+        fi
+
+        local tmp_manifest
+        tmp_manifest=$(dock2flox_mktemp)
+        emit_toml "$ir_file" > "$tmp_manifest"
+
+        local -a flox_edit_args=(-f "$tmp_manifest")
+        [[ -n "$apply_dir" ]] && flox_edit_args+=(-d "$apply_dir")
+
+        log_info "Applying manifest via flox edit..."
+        if flox edit "${flox_edit_args[@]}"; then
+            log_info "Manifest applied successfully"
+        else
+            log_error "flox edit failed — manifest unchanged. Review the error above."
+            log_error "Use --dry-run to inspect the generated manifest."
+            return 1
+        fi
         _print_summary "$ir_file"
     else
         local output_file="$output_dir/manifest.toml"
