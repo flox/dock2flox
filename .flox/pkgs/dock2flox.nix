@@ -15,7 +15,7 @@ in
 
 stdenv.mkDerivation {
   pname = "dock2flox";
-  version = "0.1.0";
+  version = "0.4.2";
   src = ../../.;
 
   nativeBuildInputs = [ makeWrapper ];

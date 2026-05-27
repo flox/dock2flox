@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # --- Constants ---
-readonly DOCK2FLOX_VERSION="0.1.0"
+readonly DOCK2FLOX_VERSION="0.4.2"
 readonly DOCK2FLOX_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly DOCK2FLOX_LIB="$DOCK2FLOX_ROOT/lib"
 readonly DOCK2FLOX_DATA="$DOCK2FLOX_ROOT/data"
