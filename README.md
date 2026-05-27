@@ -36,24 +36,29 @@ RUN case "$(uname -m)" in                       # picks the right branch
 
 ## Quick Start
 
+dock2flox runs inside its own Flox environment, which provides Python, PyYAML, and other dependencies:
+
 ```bash
-# Preview what dock2flox would generate (doesn't write anything)
-bin/dock2flox --dry-run
+# Activate the dock2flox environment
+flox activate
 
-# Convert a specific Dockerfile
-bin/dock2flox --dry-run path/to/Dockerfile
+# Preview what dock2flox would generate (prints to stdout, writes nothing)
+bin/dock2flox --dry-run examples/Dockerfile
 
-# Actually write the manifest
-bin/dock2flox -o ./my-project Dockerfile
+# Apply to a Flox environment (validated by flox edit, atomic)
+flox init -d ./my-project
+bin/dock2flox --apply -d ./my-project Dockerfile
 
-# Include Compose file (handles service boundary decisions)
-bin/dock2flox --dry-run Dockerfile docker-compose.yml
-
-# Validate package names against the Flox catalog
+# Preview with live package validation
 bin/dock2flox --dry-run --validate Dockerfile
+
+# Convert Dockerfile + Compose together
+bin/dock2flox --dry-run Dockerfile docker-compose.yml
 ```
 
 If you don't specify files, dock2flox auto-detects `Dockerfile*`, `docker-compose*.yml`, and `.devcontainer/devcontainer.json` in the current directory.
+
+`--apply` pipes the generated manifest through `flox edit -f`, which validates TOML syntax and package resolution before accepting it. If anything fails, the existing manifest stays untouched.
 
 ## What You Get
 
@@ -212,11 +217,13 @@ dock2flox [OPTIONS] [FILE...]
 
 OPTIONS:
     -i, --input FILE        Explicit input file (repeatable)
-    -o, --output DIR        Output directory for manifest (default: ./)
     -n, --dry-run           Print manifest to stdout, do not write files
+        --apply             Apply manifest to Flox environment via flox edit (validated, atomic)
+    -d, --dir DIR           Target Flox environment directory (with --apply)
+    -o, --output DIR        Output directory for bare manifest file (default: ./)
     -f, --force             Overwrite existing manifest without confirmation
         --validate          Verify package mappings via flox search
-        --services MODE     Service handling: flox | container | prompt
+        --services MODE     Service handling: flox | compose | container | prompt
         --pip MODE          Python packages: project | flox | cuda | requirements
         --verbose           Show mapping decisions on stderr
     -h, --help              Show usage
