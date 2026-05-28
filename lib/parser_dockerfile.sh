@@ -1145,9 +1145,9 @@ _parse_run_command_text() {
     _detect_package_source_in_command_text "$cmd" "$ir_file" "$line_num" || true
 
     # Detect package install commands
-    if [[ "$cmd" =~ apt-get[[:space:]]+install ]]; then
+    if [[ "$cmd" =~ apt-get[[:space:]]+install || "$cmd" =~ apt-get[[:space:]]+-.*install ]]; then
         _extract_apt_packages "$cmd" "$ir_file" "$line_num"
-    elif [[ "$cmd" =~ apt[[:space:]]+install ]]; then
+    elif [[ "$cmd" =~ apt[[:space:]]+install || "$cmd" =~ apt[[:space:]]+-.*install ]]; then
         _extract_apt_packages "$cmd" "$ir_file" "$line_num"
     elif [[ "$cmd" =~ apk[[:space:]]+add ]]; then
         _extract_apk_packages "$cmd" "$ir_file" "$line_num"

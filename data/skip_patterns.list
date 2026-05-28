@@ -12,9 +12,13 @@ ENV:PIP_DISABLE_PIP_VERSION_CHECK
 
 # RUN fragments to skip (substring match)
 RUN:apt-get update
+RUN:apt update
+RUN:apt upgrade
 RUN:rm -rf /var/lib/apt/lists
 RUN:apt-get clean
+RUN:apt clean
 RUN:apt-get autoremove
+RUN:apt autoremove
 RUN:apt-get purge
 RUN:apk del
 RUN:yum clean all
