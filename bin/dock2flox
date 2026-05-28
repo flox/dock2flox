@@ -369,12 +369,18 @@ _print_summary() {
     n_exact=$(_grep_count "${IR_DELIM}EXACT${IR_DELIM}" "$ir_file")
     n_non_exact=$((n_install - n_exact))
 
+    local n_unrecognized
+    n_unrecognized=$(_grep_count 'run-unrecognized' "$ir_file")
+
     log_info "Summary: ${n_install} packages, ${n_var} vars, ${n_hook} hook lines, ${n_service} services, ${n_skip} skipped"
     if [[ "$n_unmapped" -gt 0 ]]; then
         log_warn "${n_unmapped} package(s) could not be mapped — search for UNMAPPED in output"
     fi
     if [[ "$n_non_exact" -gt 0 && "${DOCK2FLOX_VALIDATED:-0}" != "1" ]]; then
         log_warn "${n_non_exact} package(s) mapped heuristically — run with --validate to verify against the Flox catalog"
+    fi
+    if [[ "$n_unrecognized" -gt 0 ]]; then
+        log_warn "${n_unrecognized} RUN command(s) not classified — search for # RUN: in output"
     fi
 }
 

@@ -196,6 +196,8 @@ python() { __d2f_emit python "$@"; return 0; }
 python3() { __d2f_emit python3 "$@"; return 0; }
 virtualenv() { __d2f_emit virtualenv "$@"; return 0; }
 poetry() { __d2f_emit poetry "$@"; return 0; }
+pdm() { __d2f_emit pdm "$@"; return 0; }
+pipenv() { __d2f_emit pipenv "$@"; return 0; }
 node() { __d2f_emit node "$@"; return 0; }
 pnpm() { __d2f_emit pnpm "$@"; return 0; }
 yarn() { __d2f_emit yarn "$@"; return 0; }
@@ -325,7 +327,7 @@ __d2f_is_modeled_invocable() {
         apt-get|apt|apk|yum|dnf|add-apt-repository|apt-key|dpkg|gpg|yum-config-manager|rpm)
             return 0 ;;
         # Language tools
-        pip|pip3|uv|npm|npx|corepack|python|python3|virtualenv|poetry|node|pnpm|yarn)
+        pip|pip3|uv|npm|npx|corepack|python|python3|virtualenv|poetry|pdm|pipenv|node|pnpm|yarn)
             return 0 ;;
         ruby|bundle|bundler|gem|php|cargo|rustup|go|composer|java|mvn|gradle|./mvnw|./gradlew|make|cmake)
             return 0 ;;

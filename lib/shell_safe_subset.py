@@ -29,7 +29,7 @@ MODELED_COMMANDS = {
     "dpkg", "gpg", "yum-config-manager", "rpm",
     # Language package managers / runtimes
     "pip", "pip3", "uv", "npm", "npx", "corepack", "python", "python3",
-    "virtualenv", "poetry", "node", "pnpm", "yarn", "ruby", "bundle",
+    "virtualenv", "poetry", "pdm", "pipenv", "node", "pnpm", "yarn", "ruby", "bundle",
     "bundler", "gem", "php", "cargo", "rustup", "go", "composer", "java",
     "mvn", "gradle", "./mvnw", "./gradlew", "make", "cmake",
     # Downloaders

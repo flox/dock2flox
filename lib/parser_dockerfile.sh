@@ -772,7 +772,7 @@ _run_body_safe_subset_issue() {
 
     local normalized token expect_cmd=1
     local unsafe_builtins=" kill mapfile typeset enable hash trap alias unalias "
-    local modeled=" apt-get apt apk yum dnf add-apt-repository apt-key dpkg gpg yum-config-manager rpm pip pip3 uv npm npx corepack python python3 virtualenv poetry node pnpm yarn ruby bundle bundler gem php cargo rustup go composer java mvn gradle ./mvnw ./gradlew make cmake curl wget sh bash uname id whoami test [ true false : echo tee mkdir command rm cp mv ln touch chmod chown chgrp install tar unzip gzip gunzip xz bzip2 bunzip2 cat sed awk grep egrep fgrep head tail wc sort cut tr yes find file stat readlink realpath basename dirname which ls pwd rmdir mktemp printf sha256sum sha512sum md5sum sha1sum groupadd useradd adduser addgroup usermod ldconfig update-ca-certificates locale-gen update-alternatives dpkg-reconfigure sync sleep date env xargs export unset cd pushd popd set shopt declare readonly local read exec shift break continue return noop git svn hg rsync ssh scp docker podman kubectl helm terraform ansible jq yq nc ncat openssl ca-certificates libpq-dev libssl-dev pkg-config build-essential "
+    local modeled=" apt-get apt apk yum dnf add-apt-repository apt-key dpkg gpg yum-config-manager rpm pip pip3 uv npm npx corepack python python3 virtualenv poetry pdm pipenv node pnpm yarn ruby bundle bundler gem php cargo rustup go composer java mvn gradle ./mvnw ./gradlew make cmake curl wget sh bash uname id whoami test [ true false : echo tee mkdir command rm cp mv ln touch chmod chown chgrp install tar unzip gzip gunzip xz bzip2 bunzip2 cat sed awk grep egrep fgrep head tail wc sort cut tr yes find file stat readlink realpath basename dirname which ls pwd rmdir mktemp printf sha256sum sha512sum md5sum sha1sum groupadd useradd adduser addgroup usermod ldconfig update-ca-certificates locale-gen update-alternatives dpkg-reconfigure sync sleep date env xargs export unset cd pushd popd set shopt declare readonly local read exec shift break continue return noop git svn hg rsync ssh scp docker podman kubectl helm terraform ansible jq yq nc ncat openssl ca-certificates libpq-dev libssl-dev pkg-config build-essential "
     normalized="$body"; normalized="${normalized//$'\n'/ ; }"; normalized="${normalized//&&/ ; }"; normalized="${normalized//||/ ; }"; normalized="${normalized//|/ ; }"; normalized="${normalized//;/ ; }"
     for token in $normalized; do
         # Strip surrounding quotes from token for matching
@@ -1160,6 +1160,24 @@ _parse_run_command_text() {
     elif [[ "$cmd" =~ uv[[:space:]]+sync ]]; then
         ir_install "$ir_file" "uv" "uv" "" "" "EXACT" "$line_num" "uv sync"
         _emit_python_dependency_hook "$ir_file" "$line_num" "" 1
+    elif [[ "$cmd" =~ poetry[[:space:]]+(install|lock) ]]; then
+        ir_install "$ir_file" "poetry" "poetry" "" "" "EXACT" "$line_num" "poetry install"
+        _emit_hook_block "$ir_file" "$line_num" "$((1000 + line_num * 10))" \
+            'if [ -f pyproject.toml ]; then' \
+            '  poetry install --quiet' \
+            'fi'
+    elif [[ "$cmd" =~ pdm[[:space:]]+(install|sync) ]]; then
+        ir_install "$ir_file" "pdm" "pdm" "" "" "EXACT" "$line_num" "pdm install"
+        _emit_hook_block "$ir_file" "$line_num" "$((1000 + line_num * 10))" \
+            'if [ -f pyproject.toml ]; then' \
+            '  pdm install --quiet' \
+            'fi'
+    elif [[ "$cmd" =~ pipenv[[:space:]]+install ]]; then
+        ir_install "$ir_file" "pipenv" "pipenv" "" "" "EXACT" "$line_num" "pipenv install"
+        _emit_hook_block "$ir_file" "$line_num" "$((1000 + line_num * 10))" \
+            'if [ -f Pipfile ]; then' \
+            '  pipenv install' \
+            'fi'
     elif [[ "$cmd" =~ npm[[:space:]]+(i|install)[[:space:]]+-g ]]; then
         _extract_npm_global "$cmd" "$ir_file" "$line_num"
     elif _extract_language_lifecycle_text "$cmd" "$ir_file" "$line_num"; then
@@ -1262,6 +1280,36 @@ _parse_interpreted_run_event() {
             if [[ ${#argv[@]} -ge 2 && "${argv[1]}" == "sync" ]]; then
                 ir_install "$ir_file" "uv" "uv" "" "" "EXACT" "$line_num" "uv sync"
                 _emit_python_dependency_hook "$ir_file" "$line_num" "" 1
+                return 0
+            fi
+            ;;
+        poetry)
+            if [[ ${#argv[@]} -ge 2 && ( "${argv[1]}" == "install" || "${argv[1]}" == "lock" ) ]]; then
+                ir_install "$ir_file" "poetry" "poetry" "" "" "EXACT" "$line_num" "poetry ${argv[1]}"
+                _emit_hook_block "$ir_file" "$line_num" "$((1000 + line_num * 10))" \
+                    'if [ -f pyproject.toml ]; then' \
+                    '  poetry install --quiet' \
+                    'fi'
+                return 0
+            fi
+            ;;
+        pdm)
+            if [[ ${#argv[@]} -ge 2 && ( "${argv[1]}" == "install" || "${argv[1]}" == "sync" ) ]]; then
+                ir_install "$ir_file" "pdm" "pdm" "" "" "EXACT" "$line_num" "pdm ${argv[1]}"
+                _emit_hook_block "$ir_file" "$line_num" "$((1000 + line_num * 10))" \
+                    'if [ -f pyproject.toml ]; then' \
+                    '  pdm install --quiet' \
+                    'fi'
+                return 0
+            fi
+            ;;
+        pipenv)
+            if [[ ${#argv[@]} -ge 2 && "${argv[1]}" == "install" ]]; then
+                ir_install "$ir_file" "pipenv" "pipenv" "" "" "EXACT" "$line_num" "pipenv install"
+                _emit_hook_block "$ir_file" "$line_num" "$((1000 + line_num * 10))" \
+                    'if [ -f Pipfile ]; then' \
+                    '  pipenv install' \
+                    'fi'
                 return 0
             fi
             ;;
@@ -2847,6 +2895,7 @@ _extract_generic_run() {
     local cmd="$1" ir_file="$2" line_num="$3"
     # For unrecognized RUN commands, emit as a commented hook line
     ir_hook "$ir_file" "200" "# RUN: $cmd" "$line_num"
+    ir_review "$ir_file" "run-unrecognized" "RUN command not classified: $cmd" "$line_num"
 }
 
 
