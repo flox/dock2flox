@@ -745,7 +745,13 @@ _run_body_has_bashism() {
 _run_body_safe_subset_issue() {
     local body="$1" shell_kind="${2:-sh}"
     local compact tmp
-    compact=" ${body//$'\n'/ ; } "
+    # Collapse shell line continuations (backslash-newline) before tokenizing,
+    # so that multi-line apt-get install lists are seen as a single command.
+    # Also strip shell comments (# to end of line) so they don't appear as
+    # command words in the tokenizer.
+    local body_joined="${body//$'\\\n'/ }"
+    body_joined=$(sed 's/#.*$//' <<< "$body_joined")
+    compact=" ${body_joined//$'\n'/ ; } "
 
     # Safe-subset gate: host Bash may only run modeled command words and
     # supported shell syntax. Unknown command words and unmodelled Bash builtins
@@ -773,7 +779,7 @@ _run_body_safe_subset_issue() {
     local normalized token expect_cmd=1
     local unsafe_builtins=" kill mapfile typeset enable hash trap alias unalias "
     local modeled=" apt-get apt apk yum dnf add-apt-repository apt-key dpkg gpg yum-config-manager rpm pip pip3 uv npm npx corepack python python3 virtualenv poetry pdm pipenv node pnpm yarn ruby bundle bundler gem php cargo rustup go composer java mvn gradle ./mvnw ./gradlew make cmake curl wget sh bash uname id whoami test [ true false : echo tee mkdir command rm cp mv ln touch chmod chown chgrp install tar unzip gzip gunzip xz bzip2 bunzip2 cat sed awk grep egrep fgrep head tail wc sort cut tr yes find file stat readlink realpath basename dirname which ls pwd rmdir mktemp printf sha256sum sha512sum md5sum sha1sum groupadd useradd adduser addgroup usermod ldconfig update-ca-certificates locale-gen update-alternatives dpkg-reconfigure sync sleep date env xargs export unset cd pushd popd set shopt declare readonly local read exec shift break continue return noop git svn hg rsync ssh scp docker podman kubectl helm terraform ansible jq yq nc ncat openssl ca-certificates libpq-dev libssl-dev pkg-config build-essential "
-    normalized="$body"; normalized="${normalized//$'\n'/ ; }"; normalized="${normalized//&&/ ; }"; normalized="${normalized//||/ ; }"; normalized="${normalized//|/ ; }"; normalized="${normalized//;/ ; }"
+    normalized="$body_joined"; normalized="${normalized//$'\n'/ ; }"; normalized="${normalized//&&/ ; }"; normalized="${normalized//||/ ; }"; normalized="${normalized//|/ ; }"; normalized="${normalized//;/ ; }"
     for token in $normalized; do
         # Strip surrounding quotes from token for matching
         local bare="$token"
@@ -810,7 +816,8 @@ _run_body_posix_syntax_ok() {
 _run_body_safety_issue() {
     local body="$1"
     local compact segments segment token next rest inner
-    compact=" ${body//$'\n'/ ; } "
+    local body_joined="${body//$'\\\n'/ }"
+    compact=" ${body_joined//$'\n'/ ; } "
 
     case "$compact" in
         *'while true;'*'do'*|*'while true do'*|*'while :;'*'do'*|*'while : do'*|*'until false;'*'do'*|*'until false do'*)

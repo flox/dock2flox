@@ -167,7 +167,7 @@ dock2flox_classify_input() {
             ;;
         *)
             # Fallback: check file content for Dockerfile-like instructions
-            if head -5 "$filepath" 2>/dev/null | grep -qi '^\(FROM\|ARG\|ENV\|RUN\) '; then
+            if head -20 "$filepath" 2>/dev/null | grep -qi '^\(FROM\|ARG\|ENV\|RUN\) '; then
                 printf 'dockerfile'
             elif head -5 "$filepath" 2>/dev/null | grep -qi '^services:'; then
                 printf 'compose'
