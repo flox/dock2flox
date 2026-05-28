@@ -10,15 +10,6 @@ IR_DELIM = "\x1f"
 
 SKIP_ENV = {"DEBIAN_FRONTEND", "APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE"}
 
-# Extensions whose presence implies a project CLI tool dependency
-EXTENSION_TOOL_HINTS = {
-    "charliermarsh.ruff": "ruff",
-    "ms-python.black-formatter": "black",
-    "ms-python.mypy-type-checker": "mypy",
-    "ms-python.pylint": "pylint",
-    "dbaeumer.vscode-eslint": "eslint",
-    "esbenp.prettier-vscode": "prettier",
-}
 
 DEV_SERVER_PATTERNS = [
     "npm run dev", "npm start", "yarn dev", "pnpm dev",
@@ -101,6 +92,22 @@ def load_features_map():
             notes = parts[3] if len(parts) > 3 else ""
             features_map[uri] = (pkg_path, version_key, notes)
     return features_map
+
+
+def load_extensions_map():
+    """Load the VS Code extension ID -> CLI tool mapping table."""
+    ext_map = {}
+    map_path = Path(__file__).parent.parent / "data" / "vscode_extensions.map"
+    if not map_path.exists():
+        return ext_map
+    for line in map_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 2:
+            ext_map[parts[0].lower()] = parts[1]
+    return ext_map
 
 
 def emit_features(features):
@@ -227,12 +234,12 @@ def emit_customizations(customizations):
     vscode = customizations.get("vscode", {})
     extensions = vscode.get("extensions", [])
 
+    extensions_map = load_extensions_map()
     hinted_tools = []
     for ext_id in extensions:
-        ext_lower = ext_id.lower()
-        for known_ext, tool in EXTENSION_TOOL_HINTS.items():
-            if ext_lower == known_ext.lower():
-                hinted_tools.append(f"{ext_id} implies {tool}")
+        tool = extensions_map.get(ext_id.lower())
+        if tool:
+            hinted_tools.append(f"{ext_id} implies {tool}")
 
     if hinted_tools:
         ir_review("devcontainer-extensions",

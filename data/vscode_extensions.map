@@ -1,0 +1,93 @@
+# VS Code extension ID -> CLI tool mapping
+# Format: extension_id<TAB>tool_name<TAB>notes (optional)
+# Extension IDs are matched case-insensitively.
+# Only extensions that imply a system-level CLI tool or language runtime.
+# Tool names appear in REVIEW hints, not INSTALL records.
+
+# Python linters and formatters
+charliermarsh.ruff	ruff	Linter and formatter
+ms-python.black-formatter	black	Formatter
+ms-python.mypy-type-checker	mypy	Type checker
+ms-python.pylint	pylint	Linter
+ms-python.isort	isort	Import sorter
+ms-python.flake8	flake8	Linter
+ms-python.vscode-pylance	pyright	Pylance bundles pyright; the CLI is pyright
+
+# Python runtime
+ms-python.python	python3	Python runtime
+
+# JavaScript / TypeScript / Web
+dbaeumer.vscode-eslint	eslint	JS/TS linter
+esbenp.prettier-vscode	prettier	Formatter
+biomejs.biome	biome	Linter and formatter
+denoland.vscode-deno	deno	Deno runtime
+
+# Go
+golang.go	go	Go toolchain
+
+# Rust
+rust-lang.rust-analyzer	rust-analyzer	Rust language server
+
+# Zig
+ziglang.vscode-zig	zig	Zig toolchain
+
+# .NET / C#
+ms-dotnettools.csharp	dotnet-sdk	.NET SDK
+ms-dotnettools.csdevkit	dotnet-sdk	.NET SDK (dev kit)
+
+# Ruby
+rebornix.ruby	ruby	Ruby runtime
+shopify.ruby-lsp	ruby	Ruby runtime and ruby-lsp
+
+# Lua
+sumneko.lua	lua	Lua runtime
+
+# Julia
+julialang.language-julia	julia	Julia runtime
+
+# Elixir / Erlang
+jakebecker.elixir-ls	elixir	Elixir runtime
+elixir-lsp.vscode-elixir-ls	elixir	Elixir runtime
+erlang-ls.erlang-ls	erlang	Erlang runtime
+
+# Haskell
+haskell.haskell	ghc	Glasgow Haskell Compiler
+
+# JVM
+scalameta.metals	scala	Scala toolchain
+betterthantomorrow.calva	clojure	Clojure runtime
+vscjava.vscode-java-pack	jdk	Java Development Kit
+vscjava.vscode-maven	maven	Maven build tool
+vscjava.vscode-gradle	gradle	Gradle build tool
+
+# PHP
+bmewburn.vscode-intelephense-client	php	PHP runtime
+xdebug.php-debug	php	PHP runtime (debugging)
+
+# C / C++
+ms-vscode.cpptools	gcc	C/C++ compiler toolchain
+llvm-vs-code-extensions.vscode-clangd	clang-tools	Clang language server and tools
+ms-vscode.cmake-tools	cmake	CMake build system
+ms-vscode.makefile-tools	gnumake	GNU Make
+
+# Shell and config linters
+timonwong.shellcheck	shellcheck	Shell script linter
+foxundermoon.shell-format	shfmt	Shell formatter
+davidanson.vscode-markdownlint	markdownlint-cli	Markdown linter
+redhat.vscode-yaml	yamllint	YAML linter
+tamasfe.even-better-toml	taplo	TOML toolkit
+
+# Infrastructure and DevOps
+hashicorp.terraform	terraform	Terraform CLI
+hashicorp.hcl	terraform	HCL language (Terraform ecosystem)
+redhat.ansible	ansible	Ansible CLI
+ms-kubernetes-tools.vscode-kubernetes-tools	kubectl	Kubernetes CLI
+tim-koehler.helm-intellisense	kubernetes-helm	Helm CLI
+ms-azuretools.vscode-docker	docker-client	Docker CLI
+exiasr.hadolint	hadolint	Dockerfile linter
+
+# Other tools
+zxh404.vscode-proto3	protobuf	Protobuf compiler
+jnoortheen.nix-ide	nixfmt	Nix formatter
+james-yu.latex-workshop	texliveFull	LaTeX distribution
+joaompinto.vscode-graphviz	graphviz	Graphviz DOT rendering
