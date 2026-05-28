@@ -40,6 +40,7 @@ OPTIONS:
     -i, --input FILE        Explicit input file (repeatable)
     -n, --dry-run           Print manifest to stdout, do not write files
         --apply             Apply manifest to Flox environment via flox edit (validated, atomic)
+        --init              Run flox init before --apply if no .flox/ directory exists
     -d, --dir DIR           Target Flox environment directory (with --apply)
     -o, --output DIR        Output directory for bare manifest file (default: ./)
     -f, --force             Overwrite existing manifest without confirmation
@@ -81,6 +82,7 @@ main() {
     local apply=0
     local apply_dir=""
     local live_hooks=0
+    local init=0
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -111,6 +113,10 @@ main() {
                 ;;
             --live-hooks)
                 live_hooks=1
+                shift
+                ;;
+            --init)
+                init=1
                 shift
                 ;;
             --validate)
@@ -157,6 +163,10 @@ main() {
     fi
     if [[ "$apply" -eq 1 && "$output_dir" != "." ]]; then
         log_error "--apply and -o are mutually exclusive (--apply writes via flox edit)"
+        return 1
+    fi
+    if [[ "$init" -eq 1 && "$apply" -eq 0 ]]; then
+        log_error "--init requires --apply"
         return 1
     fi
 
@@ -263,6 +273,17 @@ main() {
         if ! command -v flox &>/dev/null; then
             log_error "--apply requires flox in PATH"
             return 1
+        fi
+
+        if [[ "$init" -eq 1 ]]; then
+            local init_dir="${apply_dir:-.}"
+            if [[ ! -d "$init_dir/.flox" ]]; then
+                log_info "Initializing Flox environment in $init_dir..."
+                if ! flox init -d "$init_dir"; then
+                    log_error "flox init failed"
+                    return 1
+                fi
+            fi
         fi
 
         local tmp_manifest
