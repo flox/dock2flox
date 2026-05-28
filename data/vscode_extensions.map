@@ -38,6 +38,7 @@ ms-dotnettools.csdevkit	dotnet-sdk	.NET SDK (dev kit)
 # Ruby
 rebornix.ruby	ruby	Ruby runtime
 shopify.ruby-lsp	ruby	Ruby runtime and ruby-lsp
+koichisasada.vscode-rdbg	ruby	Ruby debugger (rdbg ships with Ruby 3.1+)
 
 # Lua
 sumneko.lua	lua	Lua runtime
@@ -87,6 +88,7 @@ ms-azuretools.vscode-docker	docker-client	Docker CLI
 exiasr.hadolint	hadolint	Dockerfile linter
 
 # Other tools
+dprint.dprint	dprint	Code formatter
 zxh404.vscode-proto3	protobuf	Protobuf compiler
 jnoortheen.nix-ide	nixfmt	Nix formatter
 james-yu.latex-workshop	texliveFull	LaTeX distribution
