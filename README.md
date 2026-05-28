@@ -46,8 +46,7 @@ flox activate
 bin/dock2flox --dry-run examples/Dockerfile
 
 # Apply to a Flox environment (validated by flox edit, atomic)
-flox init -d ./my-project
-bin/dock2flox --apply -d ./my-project Dockerfile
+bin/dock2flox --apply --init -d ./my-project Dockerfile
 
 # Preview with live package validation
 bin/dock2flox --dry-run --validate Dockerfile
@@ -58,7 +57,7 @@ bin/dock2flox --dry-run Dockerfile docker-compose.yml
 
 If you don't specify files, dock2flox auto-detects `Dockerfile*`, `docker-compose*.yml`, and `.devcontainer/devcontainer.json` in the current directory.
 
-`--apply` pipes the generated manifest through `flox edit -f`, which validates TOML syntax and package resolution before accepting it. If anything fails, the existing manifest stays untouched.
+`--apply` pipes the generated manifest through `flox edit -f`, which validates TOML syntax and package resolution before accepting it. If anything fails, the existing manifest stays untouched. Add `--init` to run `flox init` automatically when the target directory has no `.flox/` environment yet — this turns the full conversion into a single command.
 
 ## What You Get
 
@@ -231,6 +230,7 @@ OPTIONS:
     -i, --input FILE        Explicit input file (repeatable)
     -n, --dry-run           Print manifest to stdout, do not write files
         --apply             Apply manifest to Flox environment via flox edit (validated, atomic)
+        --init              Run flox init before --apply if no .flox/ directory exists
     -d, --dir DIR           Target Flox environment directory (with --apply)
     -o, --output DIR        Output directory for bare manifest file (default: ./)
     -f, --force             Overwrite existing manifest without confirmation
