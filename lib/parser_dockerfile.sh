@@ -1157,6 +1157,9 @@ _parse_run_command_text() {
         _extract_pip_install "$cmd" "$ir_file" "$line_num"
     elif [[ "$cmd" =~ uv[[:space:]]+pip[[:space:]]+install ]]; then
         _extract_pip_install "$cmd" "$ir_file" "$line_num"
+    elif [[ "$cmd" =~ uv[[:space:]]+sync ]]; then
+        ir_install "$ir_file" "uv" "uv" "" "" "EXACT" "$line_num" "uv sync"
+        _emit_python_dependency_hook "$ir_file" "$line_num" "" 1
     elif [[ "$cmd" =~ npm[[:space:]]+(i|install)[[:space:]]+-g ]]; then
         _extract_npm_global "$cmd" "$ir_file" "$line_num"
     elif _extract_language_lifecycle_text "$cmd" "$ir_file" "$line_num"; then
@@ -1254,6 +1257,11 @@ _parse_interpreted_run_event() {
         uv)
             if [[ ${#argv[@]} -ge 3 && "${argv[1]}" == "pip" && "${argv[2]}" == "install" ]]; then
                 _extract_pip_install_argv "$ir_file" "$line_num" "${argv[@]}"
+                return 0
+            fi
+            if [[ ${#argv[@]} -ge 2 && "${argv[1]}" == "sync" ]]; then
+                ir_install "$ir_file" "uv" "uv" "" "" "EXACT" "$line_num" "uv sync"
+                _emit_python_dependency_hook "$ir_file" "$line_num" "" 1
                 return 0
             fi
             ;;
