@@ -148,6 +148,18 @@ bin/dock2flox --dry-run
 
 When a devcontainer references a Dockerfile via `build.dockerfile`, dock2flox reads that Dockerfile and extracts its packages into the same manifest. The tool resolves the Dockerfile path relative to `build.context` (per the devcontainer spec), handling both object and string shorthand forms.
 
+Lifecycle commands like `postCreateCommand` go through the same pipeline as Dockerfile `RUN` bodies: `pip install flask ruff` applies the pip calculus (ruff to `[install]`, flask as uv hook), `npm ci` generates a smart lockfile-checking hook, and `apt-get install` maps packages normally.
+
+Commands the tool can't classify (`uv sync`, `make setup`, `bundle install`) appear as commented-out `# RUN:` lines in the hook by default — the tool doesn't run commands it doesn't understand. To keep them as executable hook commands, use `--live-hooks`:
+
+```bash
+# Conservative (default): unrecognized commands commented out for review
+bin/dock2flox --dry-run .devcontainer/devcontainer.json
+
+# Trust lifecycle commands: keep them executable
+bin/dock2flox --live-hooks --dry-run .devcontainer/devcontainer.json
+```
+
 ## Safety Model
 
 dock2flox never executes your Dockerfile commands on your machine. The interpreter:
@@ -225,12 +237,14 @@ OPTIONS:
         --validate          Verify package mappings via flox search
         --services MODE     Service handling: flox | compose | container | prompt
         --pip MODE          Python packages: project | flox | cuda | requirements
+        --live-hooks        Keep unrecognized devcontainer lifecycle commands as executable hooks
         --verbose           Show mapping decisions on stderr
     -h, --help              Show usage
 
 ENVIRONMENT VARIABLES:
     DOCK2FLOX_SERVICES      Override service mode (flox|container|prompt)
     DOCK2FLOX_PIP           Override pip mode (project|flox|cuda|requirements)
+    DOCK2FLOX_LIVE_HOOKS    Set to 1 for live hooks (default: 0, commented out)
     DOCK2FLOX_VERBOSE       Set to 1 for verbose output
     DOCK2FLOX_RUN_TIMEOUT   Interpreter timeout per RUN (default: 5s)
     DOCK2FLOX_RUN_ARCH      Override architecture model (default: x86_64)
