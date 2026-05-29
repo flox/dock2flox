@@ -172,6 +172,8 @@ ncurses-dev	ncurses
 libffi-dev	libffi
 libxml2-dev	libxml2
 libxml2	libxml2
+libsm	libSM
+libxext	libXext
 libxslt-dev	libxslt
 yaml-dev	libyaml
 curl-dev	curl
