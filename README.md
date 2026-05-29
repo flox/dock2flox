@@ -149,9 +149,9 @@ bin/dock2flox --dry-run
 
 When a devcontainer references a Dockerfile via `build.dockerfile`, dock2flox reads that Dockerfile and extracts its packages into the same manifest. The tool resolves the Dockerfile path relative to `build.context` (per the devcontainer spec), handling both object and string shorthand forms.
 
-Lifecycle commands like `postCreateCommand` go through the same pipeline as Dockerfile `RUN` bodies: `pip install flask ruff` applies the pip calculus (ruff to `[install]`, flask as uv hook), `npm ci` generates a smart lockfile-checking hook, and `apt-get install` maps packages normally.
+Lifecycle commands like `postCreateCommand` go through the same pipeline as Dockerfile `RUN` bodies: `pip install flask ruff` applies the pip calculus (see below, **Python Package Placement**) and declares `ruff` under `[install]`, `flask` as a `uv` hook;, `npm ci` generates a smart lockfile-checking hook; and `apt-get install` maps packages normally.
 
-Commands the tool can't classify (`uv sync`, `make setup`, `bundle install`) appear as commented-out `# RUN:` lines in the hook by default — the tool doesn't run commands it doesn't understand. To keep them as executable hook commands, use `--live-hooks`:
+Commands the tool can't classify (`make setup`, `bundle install`) appear as commented-out `# RUN:` lines in the hook by default — the tool doesn't run commands it doesn't understand. To keep them as executable hook commands, use `--live-hooks`:
 
 ```bash
 # Conservative (default): unrecognized commands commented out for review
