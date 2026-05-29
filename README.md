@@ -81,6 +81,8 @@ The output is a complete Flox `manifest.toml` with:
 | `RUN corepack enable yarn` | `yarn-berry.pkg-path = "yarn-berry"` |
 | `ENV DATABASE_URL=...` | `DATABASE_URL = "..."` in [vars] |
 | `RUN pip install -r requirements.txt` | Hook: `uv pip install -r requirements.txt` |
+| `RUN uv sync` / `poetry install` / `pdm sync` | Smart hook with lockfile guard |
+| `RUN /opt/venv/bin/pip install flask` | Recovered: `pip install flask` + REVIEW |
 | `EXPOSE 8080` | `DOCK2FLOX_EXPOSED_PORTS = "8080"` metadata |
 | `CMD ["node", "server.js"]` | Generated `[services].app` command |
 
@@ -168,6 +170,7 @@ dock2flox never executes your Dockerfile commands on your machine. The interpret
 3. **Isolates** execution with `PATH=/nonexistent` — nothing from your system can run
 4. **Times out** after 5 seconds — infinite loops can't hang the tool
 5. **Marks uncertainty** — anything it can't handle gets a `REVIEW[...]` comment instead of a wrong guess
+6. **Recovers path-addressed commands** — `/opt/venv/bin/pip install flask` is recognized as `pip` and extracted normally, with a `REVIEW` noting the assumption
 
 ## Package Confidence
 
@@ -306,5 +309,5 @@ Then run `tests/run_tests.sh` to verify.
 - **Not a container replacement** — dock2flox produces development environments, not OCI images
 - **Package coverage** — static mapping tables cover ~600 common apt and apk packages; uncommon ones need `--validate` or manual mapping
 - **Compose orchestration** — dock2flox preserves networks, volumes, secrets, and health checks as metadata but Flox does not enforce them
-- **RUN interpretation** — handles variables, loops, conditionals, and heredocs, but complex scripting (downloaded scripts, generated files) may still need review
-- **devcontainer.json** — maps features, env vars, lifecycle commands, and service patterns; chains to Dockerfile and Compose parsers when referenced; does not generate companion task wrapper scripts or map VSCode extensions to packages automatically
+- **RUN interpretation** — handles variables, loops, conditionals, and heredocs (per-statement splitting so one unmodeled command doesn't block the rest), but complex scripting (downloaded scripts, generated files) may still need review
+- **devcontainer.json** — maps features, env vars, lifecycle commands, service patterns, and 54 VS Code extension-to-tool hints; chains to Dockerfile and Compose parsers when referenced
