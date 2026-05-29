@@ -186,14 +186,13 @@ _heuristic_transform() {
 
 _make_install_id() {
     local pkg_path="$1"
-    # Convert pkg-path to a valid install ID
-    # e.g., "python313Packages.pip" -> "pip"
-    # e.g., "gcc" -> "gcc"
-    if [[ "$pkg_path" == *.* ]]; then
-        # Take the last component
+    # Convert pkg-path to a valid install ID.
+    # Only split on dots for nixpkgs namespace prefixes (*Packages.foo).
+    # Version dots (libpango-1.0-0) must NOT split — sanitize instead.
+    if [[ "$pkg_path" == *Packages.* ]]; then
         printf '%s' "${pkg_path##*.}"
     else
-        printf '%s' "$pkg_path"
+        _sanitize_id "$pkg_path"
     fi
 }
 
