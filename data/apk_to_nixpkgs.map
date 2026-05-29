@@ -6,6 +6,7 @@ build-base	gcc	also install gnumake and binutils
 alpine-sdk	gcc	meta-package similar to build-essential
 gcc	gcc
 g++	gcc
+gfortran	gfortran
 make	gnumake
 cmake	cmake
 autoconf	autoconf
@@ -30,6 +31,7 @@ wget	wget
 git	git
 git-lfs	git-lfs
 bash	bash
+bc	bc
 bubblewrap	bubblewrap
 coreutils	coreutils
 espeak-ng	espeak-ng

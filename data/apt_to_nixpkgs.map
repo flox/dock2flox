@@ -7,6 +7,7 @@
 build-essential	gcc	also install gnumake and binutils
 gcc	gcc
 g++	gcc
+gfortran	gfortran	Fortran compiler
 make	gnumake
 cmake	cmake
 automake	automake
@@ -404,6 +405,7 @@ libzbar-dev	zbar
 
 # Fonts
 fonts-liberation	liberation_ttf
+fonts-dejavu	dejavu_fonts
 fonts-dejavu-core	dejavu_fonts
 
 # MIME / file type detection
