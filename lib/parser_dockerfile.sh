@@ -1667,6 +1667,39 @@ _parse_run_heredoc_per_statement() {
     return 0
 }
 
+# --- Path-addressed command basename recovery ---
+# Commands whose basename recovery produces useful extraction (packages, hooks).
+# File-manipulation commands (touch, chmod, mkdir, etc.) are intentionally
+# excluded — recovering them yields no packages and would break safety tests.
+readonly _D2F_RECOVERABLE_BASENAMES=" apt-get apt apk yum dnf pip pip3 uv poetry pdm pipenv python python3 npm npx yarn pnpm corepack node bundle bundler gem ruby composer mvn gradle cargo go php curl wget "
+
+# Attempt to recover a path-addressed command by substituting with its basename.
+# Iteratively calls the subset gate as oracle: each pass substitutes one
+# path-addressed command. Returns the recovered body on stdout (exit 0) or
+# fails (exit 1) if any path has a non-recoverable basename.
+_d2f_recover_path_addressed_basenames() {
+    local body="$1" shell_kind="${2:-sh}"
+    local max_iter=10 i issue kind detail path bn
+    for ((i = 0; i < max_iter; i++)); do
+        issue=$(_run_body_safe_subset_issue "$body" "$shell_kind" || true)
+        if [[ -z "$issue" ]]; then
+            printf '%s' "$body"
+            return 0
+        fi
+        kind="${issue%%$'\t'*}"
+        detail="${issue#*$'\t'}"
+        if [[ "$kind" != "run-path" || "$detail" != "path-addressed command: "* ]]; then
+            return 1
+        fi
+        path="${detail#path-addressed command: }"
+        bn="${path##*/}"
+        if [[ "$_D2F_RECOVERABLE_BASENAMES" != *" $bn "* ]]; then
+            return 1
+        fi
+        body="${body/"$path"/"$bn"}"
+    done
+    return 1
+}
 
 _parse_run() {
     local line="$1" ir_file="$2" line_num="$3"
@@ -1713,6 +1746,16 @@ _parse_run() {
         subset_detail="${subset_issue#*$'	'}"
         case "$subset_kind" in
             run-path)
+                # Attempt basename recovery for path-addressed commands
+                if [[ "$subset_detail" == "path-addressed command: "* && -z "${D2F_PATH_RECOVERY_ATTEMPTED:-}" ]]; then
+                    local recovered_body=""
+                    if recovered_body=$(_d2f_recover_path_addressed_basenames "$run_body" "$shell_kind"); then
+                        ir_review "$ir_file" "run-path-recovered" \
+                            "RUN line $line_num: path-addressed command(s) replaced with basename(s) for extraction. Original: $(_single_line_preview "$run_body"). If any path points to a non-standard wrapper, the extracted packages may be incorrect." "$line_num"
+                        D2F_PATH_RECOVERY_ATTEMPTED=1 _parse_run "RUN $recovered_body" "$ir_file" "$line_num"
+                        return 0
+                    fi
+                fi
                 ir_review "$ir_file" "run-path" "RUN line $line_num contains command dispatch outside dock2flox's safe modeled subset ($subset_detail). The command was not executed on the analyzer host; review manually." "$line_num"
                 ir_hook "$ir_file" "$((2000 + line_num))" "# RUN: unsafe/path-addressed command not interpreted by dock2flox; review manually: $(_single_line_preview "$run_body")" "$line_num"
                 return 0
@@ -1737,6 +1780,21 @@ _parse_run() {
         safety_detail="${safety_issue#*$'\t'}"
         case "$safety_kind" in
             PATH)
+                # Attempt basename recovery for path-addressed commands
+                if [[ -z "${D2F_PATH_RECOVERY_ATTEMPTED:-}" ]]; then
+                    local safety_bn="${safety_detail##*/}"
+                    if [[ "$_D2F_RECOVERABLE_BASENAMES" == *" $safety_bn "* ]]; then
+                        local recovered_body="${run_body/"$safety_detail"/"$safety_bn"}"
+                        local recheck
+                        recheck=$(_run_body_safety_issue "$recovered_body" || true)
+                        if [[ -z "$recheck" || "${recheck%%$'\t'*}" != "PATH" ]]; then
+                            ir_review "$ir_file" "run-path-recovered" \
+                                "RUN line $line_num: path-addressed command '$safety_detail' replaced with '$safety_bn' for extraction. If the path points to a non-standard wrapper, the extracted packages may be incorrect." "$line_num"
+                            D2F_PATH_RECOVERY_ATTEMPTED=1 _parse_run "RUN $recovered_body" "$ir_file" "$line_num"
+                            return 0
+                        fi
+                    fi
+                fi
                 ir_review "$ir_file" "run-path" "RUN line $line_num contains path-addressed command '$safety_detail'. dock2flox did not execute it on the analyzer host; review the command manually." "$line_num"
                 ir_hook "$ir_file" "$((2000 + line_num))" "# RUN: path-addressed command not executed by dock2flox; review manually: $(_single_line_preview "$run_body")" "$line_num"
                 return 0
