@@ -233,7 +233,15 @@ _dockerfile_collapse_continuations() {
         trimmed="${trimmed#"${trimmed%%[![:space:]]*}"}"
         trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
 
-        if [[ "$trimmed" =~ ^[Rr][Uu][Nn][[:space:]]+\<\<-?[[:space:]]*([^[:space:]]+)[[:space:]]*$ ]]; then
+        # Strip BuildKit flags for heredoc detection (RUN --mount=... <<EOF)
+        local heredoc_test="$trimmed"
+        if [[ "$heredoc_test" =~ ^[Rr][Uu][Nn][[:space:]] ]]; then
+            local _hbody="${heredoc_test#[Rr][Uu][Nn]}"
+            _hbody="${_hbody#"${_hbody%%[![:space:]]*}"}"
+            _hbody=$(_strip_buildkit_run_flags "$_hbody")
+            heredoc_test="RUN $_hbody"
+        fi
+        if [[ "$heredoc_test" =~ ^[Rr][Uu][Nn][[:space:]]+\<\<-?[[:space:]]*([^[:space:]]+)[[:space:]]*$ ]]; then
             marker="${BASH_REMATCH[1]}"
             if [[ "$trimmed" == *'<<-'* ]]; then
                 strip_tabs=1
@@ -257,6 +265,24 @@ _dockerfile_collapse_continuations() {
     elif [[ -n "$logical" ]]; then
         printf '%s\n' "$logical"
     fi
+}
+
+# Strip Docker BuildKit instruction-level flags from RUN bodies.
+# --mount=, --network=, --security= are Docker flags, not shell commands.
+# Docker strips them before passing the body to the shell.
+_strip_buildkit_run_flags() {
+    local body="$1" token
+    while true; do
+        body="${body#"${body%%[![:space:]]*}"}"
+        case "$body" in
+            --mount=*|--network=*|--security=*)
+                token="${body%%[[:space:]]*}"
+                body="${body#"$token"}"
+                ;;
+            *) break ;;
+        esac
+    done
+    printf '%s' "$body"
 }
 
 _dockerfile_get_instruction() {
@@ -344,6 +370,13 @@ _parse_from() {
 
     image_spec=$(printf '%s\n' "$line" | sed -E 's/^FROM[[:space:]]+(--platform=([^[:space:]]+)[[:space:]]+)?//I' | awk '{print $1}')
     image_spec=$(_substitute_args "$image_spec")
+
+    # Guard: empty or unresolved image_spec crashes associative array access under set -u
+    if [[ -z "$image_spec" || "$image_spec" == *'${'* || "$image_spec" == *'$'* ]]; then
+        ir_review "$ir_file" "from-dynamic" \
+            "FROM target could not be resolved to a concrete image; base image packages may be incomplete." "$line_num"
+        return 0
+    fi
 
     # Extract AS name if present
     if [[ "$line" =~ [Aa][Ss][[:space:]]+([a-zA-Z0-9_-]+) ]]; then
@@ -1710,6 +1743,7 @@ _parse_run() {
         run_body_is_heredoc=1
     fi
     run_body="${encoded_run_body//$'\x1e'/$'\n'}"
+    run_body=$(_strip_buildkit_run_flags "$run_body")
     run_body=$(_substitute_args "$run_body")
 
     # Heredoc per-statement dispatch (skip if already in per-statement recursion)
