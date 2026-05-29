@@ -4,6 +4,7 @@
 # Build tools
 build-base	gcc	also install gnumake and binutils
 alpine-sdk	gcc	meta-package similar to build-essential
+binutils	binutils
 gcc	gcc
 g++	gcc
 gfortran	gfortran
@@ -34,6 +35,8 @@ bash	bash
 bc	bc
 bubblewrap	bubblewrap
 coreutils	coreutils
+cpio	cpio
+rpm2cpio	rpm	rpm2cpio is part of rpm
 espeak-ng	espeak-ng
 runuser	util-linux	runuser is part of util-linux
 findutils	findutils

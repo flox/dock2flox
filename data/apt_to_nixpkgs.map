@@ -41,6 +41,8 @@ yq	yq
 htop	htop
 ncurses-bin	ncurses
 rsync	rsync
+cpio	cpio
+rpm2cpio	rpm	rpm2cpio is part of rpm
 socat	socat
 netcat-openbsd	netcat-gnu
 
