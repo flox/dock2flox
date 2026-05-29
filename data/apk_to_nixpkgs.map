@@ -28,9 +28,12 @@ ccache	ccache
 curl	curl
 wget	wget
 git	git
+git-lfs	git-lfs
 bash	bash
 bubblewrap	bubblewrap
 coreutils	coreutils
+espeak-ng	espeak-ng
+runuser	util-linux	runuser is part of util-linux
 findutils	findutils
 grep	gnugrep
 sed	gnused

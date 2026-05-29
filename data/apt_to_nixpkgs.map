@@ -52,6 +52,8 @@ gnupg2	gnupg
 dirmngr	gnupg
 openssh-client	openssh
 openssh-server	openssh
+espeak-ng	espeak-ng
+git-lfs	git-lfs
 
 # Python
 python3	python3
