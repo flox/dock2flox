@@ -519,6 +519,8 @@ _parse_arg() {
         value="${value%\'}"
     else
         name="$arg_body"
+        # Bare ARG re-imports global value — preserve existing default
+        [[ -n "${arg_table[$name]+exists}" ]] && return 0
         value=""
     fi
 
