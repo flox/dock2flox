@@ -29,6 +29,7 @@ curl	curl
 wget	wget
 git	git
 bash	bash
+bubblewrap	bubblewrap
 coreutils	coreutils
 findutils	findutils
 grep	gnugrep

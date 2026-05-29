@@ -14,6 +14,7 @@ autoconf	autoconf
 libtool	libtool
 pkg-config	pkg-config
 binutils	binutils
+bubblewrap	bubblewrap
 patch	patch
 bison	bison
 flex	flex
