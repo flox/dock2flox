@@ -109,8 +109,11 @@ libncurses5-dev	ncurses
 libncursesw5-dev	ncurses
 libffi-dev	libffi
 libxml2-dev	libxml2
+libxml2	libxml2
 libxslt1-dev	libxslt
 libyaml-dev	libyaml
+libsm6	libSM	X Session Management Library
+libxext6	libXext	X11 common extensions
 libcurl4-openssl-dev	curl
 libgmp-dev	gmp
 libjpeg-dev	libjpeg
